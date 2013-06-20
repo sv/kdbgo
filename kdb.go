@@ -19,7 +19,7 @@ func (c *KDBConn) Close() error {
 }
 
 func (c *KDBConn) Call(cmd string, args ...interface{}) (data interface{}, err error) {
-	err = Encode(c.con, cmd)
+	err = Encode(c.con, SYNC, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +27,11 @@ func (c *KDBConn) Call(cmd string, args ...interface{}) (data interface{}, err e
 }
 
 func (c *KDBConn) AsyncCall(cmd string, args ...interface{}) (err error) {
-	return Encode(c.con, cmd)
+	return Encode(c.con, ASYNC, cmd)
+}
+
+func (c *KDBConn) Response(data interface{}) (err error) {
+	return Encode(c.con, RESPONSE, data)
 }
 
 func DialKDB(host string, port int, auth string) (*KDBConn, error) {

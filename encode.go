@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-func Encode(w io.Writer, data interface{}) (err error) {
+func Encode(w io.Writer, msgtype int, data interface{}) (err error) {
 	switch data.(type) {
 	case string:
 		data := data.(string)
@@ -19,7 +19,7 @@ func Encode(w io.Writer, data interface{}) (err error) {
 		binary.Write(dbuf, order, []byte(data))
 
 		msglen := int32(8 + dbuf.Len())
-		var header = ipcHeader{1, 1, 0, 0, msglen}
+		var header = ipcHeader{1, byte(msgtype), 0, 0, msglen}
 		buf := new(bytes.Buffer)
 		err = binary.Write(buf, order, header)
 		err = binary.Write(buf, order, dbuf.Bytes())

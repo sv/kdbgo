@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+const (
+	ASYNC    int = 0
+	SYNC     int = 1
+	RESPONSE int = 2
+)
+
 var ErrBadMsg = errors.New("Bad Message")
 var ErrBadHeader = errors.New("Bad header")
 
