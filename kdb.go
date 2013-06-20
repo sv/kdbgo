@@ -2,7 +2,6 @@ package kdb
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"net"
@@ -19,25 +18,18 @@ func (c *KDBConn) Close() error {
 	return c.con.Close()
 }
 
-func (c *KDBConn) Cmd(cmd string) (data interface{}, err error) {
-	var order = binary.LittleEndian
-	cmdbuf := new(bytes.Buffer)
-	binary.Write(cmdbuf, order, int8(10))
-	binary.Write(cmdbuf, order, int8(0))
-	binary.Write(cmdbuf, order, int32(len(cmd)))
-	binary.Write(cmdbuf, order, []byte(cmd))
-
-	msglen := int32(8 + len(cmdbuf.Bytes()))
-	var header = ipcHeader{1, 1, 0, 0, msglen}
-	buf := new(bytes.Buffer)
-	err = binary.Write(buf, order, header)
-	err = binary.Write(buf, order, cmdbuf.Bytes())
-	_, err = c.con.Write(buf.Bytes())
+func (c *KDBConn) Call(cmd string, args ...interface{}) (data interface{}, err error) {
+	err = Encode(c.con, cmd)
 	if err != nil {
 		return nil, err
 	}
 	return Decode(c.con)
 }
+
+func (c *KDBConn) AsyncCall(cmd string, args ...interface{}) (err error) {
+	return Encode(c.con, cmd)
+}
+
 func DialKDB(host string, port int, auth string) (*KDBConn, error) {
 	tcpaddr, err := net.ResolveTCPAddr("tcp", host+":"+fmt.Sprint(port))
 	if err != nil {
