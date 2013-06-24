@@ -14,7 +14,7 @@ func Encode(w io.Writer, msgtype int, data interface{}) (err error) {
 		var order = binary.LittleEndian
 		dbuf := new(bytes.Buffer)
 		binary.Write(dbuf, order, int8(10))
-		binary.Write(dbuf, order, int8(0))
+		binary.Write(dbuf, order, NONE) // attributes
 		binary.Write(dbuf, order, int32(len(data)))
 		binary.Write(dbuf, order, []byte(data))
 

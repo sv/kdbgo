@@ -16,6 +16,16 @@ const (
 	RESPONSE int = 2
 )
 
+type Attr int8
+
+const (
+	NONE Attr = iota
+	SORTED
+	UNIQUE
+	PARTED
+	GROUPED
+)
+
 var ErrBadMsg = errors.New("Bad Message")
 var ErrBadHeader = errors.New("Bad header")
 
@@ -25,6 +35,16 @@ type Month int32
 type Minute time.Time
 type Second time.Time
 type Time time.Time
+
+type Table struct {
+	columns []string
+	data    []interface{}
+}
+
+type Dict struct {
+	Keys   interface{}
+	Values interface{}
+}
 
 func makeArray(vectype int8, veclen int32) interface{} {
 	switch vectype {
@@ -114,6 +134,18 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		var j int64
 		binary.Read(r, order, &j)
 		return j, nil
+	case -8:
+		var e float32
+		binary.Read(r, order, &e)
+		return e, nil
+	case -9:
+		var f float64
+		binary.Read(r, order, &f)
+		return f, nil
+	case -10:
+		var c byte
+		binary.Read(r, order, &c)
+		return c, nil // should be rune?
 	case -11:
 		line, err := r.ReadBytes(0)
 		if err != nil {
@@ -122,8 +154,22 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		str := string(line[:len(line)-1])
 
 		return str, nil
+	case -12:
+		var ts time.Duration
+		binary.Read(r, order, &ts)
+		return ts, nil
+	case -13:
+		var m Month
+		binary.Read(r, order, &m)
+		return m, nil
+	case -16:
+		var span time.Duration
+		binary.Read(r, order, &span)
+		return span, nil
+	case -14, -15, -17, -18, -19:
+		return nil, errors.New("NotImplemetedYet")
 	case 1, 2, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19:
-		var vecattr int8
+		var vecattr Attr
 		binary.Read(r, order, &vecattr)
 		//fmt.Println("vecattr -> ", vecattr)
 		var veclen int32
@@ -159,7 +205,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		}
 		return arr, nil
 	case 0:
-		var vecattr int8
+		var vecattr Attr
 		binary.Read(r, order, &vecattr)
 		var veclen int32
 		err = binary.Read(r, order, &veclen)
@@ -176,7 +222,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		}
 		return arr, nil
 	case 11:
-		var vecattr int8
+		var vecattr Attr
 		binary.Read(r, order, &vecattr)
 		var veclen int32
 		err = binary.Read(r, order, &veclen)
@@ -193,22 +239,24 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		}
 		return arr, nil
 	case 99, 127:
-		var dict struct{ K, V interface{} }
 		k, err := readData(r, order)
 		if err != nil {
 			return nil, err
 		}
-		dict.K = k
 		v, err := readData(r, order)
 		if err != nil {
 			return nil, err
 		}
-		dict.V = v
-		return dict, nil
+		return Dict{k, v}, nil
 	case 98:
-		var vecattr int8
+		var vecattr Attr
 		binary.Read(r, order, &vecattr)
-		return readData(r, order)
+		d, err := readData(r, order)
+		if err != nil {
+			return nil, err
+		}
+		dict := d.(Dict)
+		return Table{dict.Keys.([]string), dict.Values.([]interface{})}, nil
 
 	case 100:
 		var f struct{ Namespace, Body string }
