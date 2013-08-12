@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"time"
 )
 
 type KDBConn struct {
@@ -35,30 +36,38 @@ func (c *KDBConn) Response(data interface{}) (err error) {
 }
 
 func DialKDB(host string, port int, auth string) (*KDBConn, error) {
-	tcpaddr, err := net.ResolveTCPAddr("tcp", host+":"+fmt.Sprint(port))
+	var timeout time.Duration
+	return DialKDBTimeout(host, port, auth, timeout)
+}
+
+// 0 - v2.5, no compression, no timestamp, no timespan, no uuid
+// 1..2 - v2.6-2.8, compression, timestamp, timespan
+// 3 - v3.0, compression, timestamp, timespan, uuid
+//
+func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (*KDBConn, error) {
+	conn, err := net.Dial("tcp", host+":"+fmt.Sprint(port))
 	if err != nil {
 		return nil, err
 	}
-	//fmt.Println("connecting")
-	conn, err := net.DialTCP("tcp", nil, tcpaddr)
-	if err != nil {
-		return nil, err
-	}
+	c := conn.(*net.TCPConn)
 	// handshake - assuming latest protocol
 	var buf = bytes.NewBufferString(auth)
+	// capabilities
+	// 3 - uuid/etc
+	buf.WriteByte(3)
 	buf.WriteByte(0)
-	_, err = conn.Write(buf.Bytes())
+	_, err = c.Write(buf.Bytes())
 	if err != nil {
 		return nil, err
 	}
 	var reply = make([]byte, 2+len(auth))
-	n, err := conn.Read(reply)
+	n, err := c.Read(reply)
 	if err != nil {
 		return nil, err
 	}
 	if n != 1 {
-		return nil, errors.New("Authentication error" + string(reply))
+		return nil, errors.New("Authentication error. Max supported version - " + string(reply[0]))
 	}
-	kdbconn := KDBConn{conn, host, string(port), auth}
+	kdbconn := KDBConn{c, host, string(port), auth}
 	return &kdbconn, nil
 }

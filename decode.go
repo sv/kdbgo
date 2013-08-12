@@ -99,6 +99,9 @@ func Decode(src io.Reader) (kobj interface{}, e error) {
 	}
 	//fmt.Println("Header -> ", header)
 	var order = header.getByteOrder()
+	if header.Compressed == 0x01 {
+		return nil, errors.New("Compression not supported")
+	}
 	return readData(r, order)
 }
 func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err error) {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 )
 
 var testHost = "localhost"
@@ -18,7 +19,18 @@ func TestConn(t *testing.T) {
 	if err != nil {
 		t.Error("Failed to close connection.", err)
 	}
+}
 
+func TestConnTimeout(t *testing.T) {
+	timeout := time.Second
+	con, err := DialKDBTimeout(testHost, testPort, "", timeout)
+	if err != nil {
+		t.Error("Failed to connect with timeout.", timeout, err)
+	}
+	err = con.Close()
+	if err != nil {
+		t.Error("Failed to close connection.", err)
+	}
 }
 
 func TestSyncCall(t *testing.T) {
@@ -55,7 +67,6 @@ func TestResponse(t *testing.T) {
 func BenchmarkTradeRead(b *testing.B) {
 	con, err := DialKDB("localhost", 1234, "")
 	fmt.Println("KDB connection", con, err)
-	b.ResetTimer()
 	res, err := con.Call("test")
 	fmt.Println("Result:", reflect.TypeOf(res), err)
 }
