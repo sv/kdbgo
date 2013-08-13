@@ -37,10 +37,56 @@ func TestEIntList(t *testing.T) {
 
 }
 
-func TestESymbol(t *testing.T) {
+func TestEByteVector(t *testing.T) {
+	fmt.Println("Encoding `byte$til 5")
+	buf := new(bytes.Buffer)
+	err := Encode(buf, RESPONSE, []byte{0, 1, 2, 3, 4})
+	if err != nil {
+		t.Error("Encoding failed", err)
+	}
+	fmt.Printf("%x\n", buf)
+
+}
+
+func TestECharArray(t *testing.T) {
 	fmt.Println("Encoding \"GOOG\"")
 	buf := new(bytes.Buffer)
 	err := Encode(buf, RESPONSE, "GOOG")
+	if err != nil {
+		t.Error("Encoding failed", err)
+	}
+	fmt.Printf("%x\n", buf)
+
+}
+
+func TestESymbolArray(t *testing.T) {
+	fmt.Println("Encoding `abc`bc`c")
+	buf := new(bytes.Buffer)
+	err := Encode(buf, RESPONSE, []string{"abc", "bc", "c"})
+	if err != nil {
+		t.Error("Encoding failed", err)
+	}
+	fmt.Printf("%x\n", buf)
+
+}
+
+func TestEDictWithAtoms(t *testing.T) {
+	fmt.Println("Encoding `a`b!2 3")
+	buf := new(bytes.Buffer)
+	dict := Dict{[]string{"a", "b"}, []int32{2, 3}}
+	err := Encode(buf, RESPONSE, dict)
+	if err != nil {
+		t.Error("Encoding failed", err)
+	}
+	fmt.Printf("%x\n", buf)
+
+}
+
+func TestEGeneralList(t *testing.T) {
+	fmt.Println("Encoding `byte$enlist til 5")
+	buf := new(bytes.Buffer)
+	var list = []interface{}{[]byte{0, 1, 2, 3, 4}}
+	err := Encode(buf, RESPONSE, list)
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
