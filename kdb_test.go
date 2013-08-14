@@ -2,7 +2,7 @@ package kdb
 
 import (
 	"fmt"
-	"reflect"
+	//"reflect"
 	"testing"
 	"time"
 )
@@ -81,8 +81,11 @@ func TestResponse(t *testing.T) {
 }
 
 func BenchmarkTradeRead(b *testing.B) {
-	con, err := DialKDB("localhost", 1234, "")
-	fmt.Println("KDB connection", con, err)
-	res, err := con.Call("test")
-	fmt.Println("Result:", reflect.TypeOf(res), err)
+	con, _ := DialKDB("localhost", 1234, "")
+	//fmt.Println("KDB connection", con, err)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = con.Call("10#testdata")
+		//fmt.Println("Result:", reflect.TypeOf(res), err)
+	}
 }
