@@ -37,8 +37,8 @@ type Second time.Time
 type Time time.Time
 
 type Table struct {
-	columns []string
-	data    []interface{}
+	Columns []string
+	Data    []interface{}
 }
 
 type Dict struct {
@@ -178,7 +178,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		var veclen int32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			fmt.Println("Reading vector length failed -> %v", err)
+			fmt.Println("Reading vector length failed -> ", err)
 		}
 		var arr = makeArray(msgtype, veclen)
 		err = binary.Read(r, order, arr)
@@ -213,7 +213,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		var veclen int32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			fmt.Println("Reading vector length failed -> %v", err)
+			fmt.Println("Reading vector length failed -> ", err)
 		}
 		var arr = make([]interface{}, veclen)
 		for i := 0; i < int(veclen); i++ {
@@ -230,7 +230,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		var veclen int32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			fmt.Println("Reading vector length failed -> %v", err)
+			fmt.Println("Reading vector length failed -> ", err)
 		}
 		var arr = makeArray(msgtype, veclen).([]string)
 		for i := 0; i < int(veclen); i++ {

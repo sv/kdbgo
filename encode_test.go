@@ -82,6 +82,30 @@ func TestEDictWithAtoms(t *testing.T) {
 
 }
 
+func TestEDictWithVectors(t *testing.T) {
+	fmt.Println("Encoding `a`b!enlist each 2 3")
+	buf := new(bytes.Buffer)
+	dict := Dict{[]string{"a", "b"}, []interface{}{[]int32{2}, []int32{3}}}
+	err := Encode(buf, RESPONSE, dict)
+	if err != nil {
+		t.Error("Encoding failed", err)
+	}
+	fmt.Printf("%x\n", buf)
+
+}
+
+func TestETable(t *testing.T) {
+	fmt.Println("Encoding ([]a:enlist 2;b:enlist 3)")
+	buf := new(bytes.Buffer)
+	dict := Table{[]string{"a", "b"}, []interface{}{[]int32{2}, []int32{3}}}
+	err := Encode(buf, RESPONSE, dict)
+	if err != nil {
+		t.Error("Encoding failed", err)
+	}
+	fmt.Printf("%x\n", buf)
+
+}
+
 func TestEGeneralList(t *testing.T) {
 	fmt.Println("Encoding `byte$enlist til 5")
 	buf := new(bytes.Buffer)

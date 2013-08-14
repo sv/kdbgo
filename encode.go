@@ -10,10 +10,8 @@ import (
 )
 
 func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err error) {
+	usereflect := false
 	switch data.(type) {
-	default:
-		fmt.Println(reflect.ValueOf(data).Kind())
-		return errors.New("unknown type")
 	case string:
 		data := data.(string)
 
@@ -58,8 +56,39 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err er
 		binary.Write(dbuf, order, int8(99))
 		writeData(dbuf, order, data.Keys)
 		writeData(dbuf, order, data.Values)
+	case Table:
+		data := data.(Table)
+		binary.Write(dbuf, order, int8(98))
+		binary.Write(dbuf, order, NONE) // attributes
+		writeData(dbuf, order, Dict{data.Columns, data.Data})
+
+	default:
+		usereflect = true
 	}
-	return nil
+
+	if !usereflect {
+		return nil
+	}
+	//use reflection
+	dv := reflect.ValueOf(data)
+	dk := dv.Kind()
+	fmt.Println(dk)
+	if dk == reflect.Slice || dk == reflect.Array {
+		//fmt.Println(dv.Type().Elem())
+		if dv.Type().Elem().Kind() == reflect.Interface {
+			//fmt.Println("Encoding generic array")
+
+			binary.Write(dbuf, order, int8(0))
+			binary.Write(dbuf, order, NONE) // attributes
+			binary.Write(dbuf, order, int32(dv.Len()))
+			for i := 0; i < dv.Len(); i++ {
+				writeData(dbuf, order, dv.Index(i).Interface())
+			}
+			return nil
+			//return errors.New("nyi")
+		}
+	}
+	return errors.New("unknown type")
 }
 func Encode(w io.Writer, msgtype int, data interface{}) (err error) {
 	var order = binary.LittleEndian

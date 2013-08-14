@@ -20,7 +20,13 @@ func (c *KDBConn) Close() error {
 }
 
 func (c *KDBConn) Call(cmd string, args ...interface{}) (data interface{}, err error) {
-	err = Encode(c.con, SYNC, cmd)
+	var sending interface{}
+	if len(args) == 0 {
+		sending = cmd
+	} else {
+		sending = append([]interface{}{cmd}, args)
+	}
+	err = Encode(c.con, SYNC, sending)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +34,13 @@ func (c *KDBConn) Call(cmd string, args ...interface{}) (data interface{}, err e
 }
 
 func (c *KDBConn) AsyncCall(cmd string, args ...interface{}) (err error) {
-	return Encode(c.con, ASYNC, cmd)
+	var sending interface{}
+	if len(args) == 0 {
+		sending = cmd
+	} else {
+		sending = append([]interface{}{cmd}, args)
+	}
+	return Encode(c.con, ASYNC, sending)
 }
 
 func (c *KDBConn) Response(data interface{}) (err error) {
