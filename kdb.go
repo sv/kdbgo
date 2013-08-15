@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"bufio"
 	"net"
 	"time"
 )
 
 type KDBConn struct {
 	con     *net.TCPConn
+	rbuf	*bufio.Reader
 	Host    string
 	Port    string
 	userpwd string
@@ -30,7 +32,7 @@ func (c *KDBConn) Call(cmd string, args ...interface{}) (data interface{}, err e
 	if err != nil {
 		return nil, err
 	}
-	return Decode(c.con)
+	return Decode(c.rbuf)
 }
 
 func (c *KDBConn) AsyncCall(cmd string, args ...interface{}) (err error) {
@@ -80,6 +82,6 @@ func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (
 	if n != 1 {
 		return nil, errors.New("Authentication error. Max supported version - " + string(reply[0]))
 	}
-	kdbconn := KDBConn{c, host, string(port), auth}
+	kdbconn := KDBConn{c, bufio.NewReader(c),host, string(port), auth}
 	return &kdbconn, nil
 }

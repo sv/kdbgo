@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nu7hatch/gouuid"
-	"io"
 	"time"
 )
 
@@ -89,25 +88,28 @@ func (h *ipcHeader) getByteOrder() binary.ByteOrder {
 	}
 	return order
 }
-func Decode(src io.Reader) (kobj interface{}, e error) {
-	var r = bufio.NewReader(src)
+func Decode(src *bufio.Reader) (kobj interface{}, e error) {
 	var header ipcHeader
-	//fmt.Println("Reading header")
-	err := binary.Read(r, binary.LittleEndian, &header)
-	if err != nil {
-		fmt.Println("binary.Read failed:", err)
+	e= binary.Read(src, binary.LittleEndian, &header)
+	if e != nil {
+		fmt.Println("binary.Read failed:", e)
+		return nil, e
 	}
 	//fmt.Println("Header -> ", header)
 	var order = header.getByteOrder()
 	if header.Compressed == 0x01 {
 		return nil, errors.New("Compression not supported")
 	}
-	return readData(r, order)
+	kobj, e = readData(src,order)
+	//fmt.Println("Object decoded",e)
+	//fmt.Println("buffered = ",src.Buffered())
+	return kobj,e
 }
 func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err error) {
 	var msgtype int8
 	//var msglen = header.MsgSize
-	binary.Read(r, order, &msgtype)
+	err = binary.Read(r, order, &msgtype)
+	if err !=nil {fmt.Println("readData:msgtype",err);return nil, err}
 	//fmt.Println("Msg Type:", msgtype)
 	switch msgtype {
 	case -1:
@@ -173,12 +175,13 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		return nil, errors.New("NotImplemetedYet")
 	case 1, 2, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19:
 		var vecattr Attr
-		binary.Read(r, order, &vecattr)
-		//fmt.Println("vecattr -> ", vecattr)
+		err = binary.Read(r, order, &vecattr)
+		if err !=nil {fmt.Println("readData: Failed to read vecattr",err); return nil, err}
 		var veclen int32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
 			fmt.Println("Reading vector length failed -> ", err)
+			return nil,err
 		}
 		var arr = makeArray(msgtype, veclen)
 		err = binary.Read(r, order, arr)
@@ -209,11 +212,13 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		return arr, nil
 	case 0:
 		var vecattr Attr
-		binary.Read(r, order, &vecattr)
+		err = binary.Read(r, order, &vecattr)
+		if err !=nil {fmt.Println("readData: Failed to read vecattr",err); return nil, err}
 		var veclen int32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
 			fmt.Println("Reading vector length failed -> ", err)
+			return nil, err
 		}
 		var arr = make([]interface{}, veclen)
 		for i := 0; i < int(veclen); i++ {
@@ -226,11 +231,13 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		return arr, nil
 	case 11:
 		var vecattr Attr
-		binary.Read(r, order, &vecattr)
+		err = binary.Read(r, order, &vecattr)
+		if err !=nil {fmt.Println("readData: Failed to read vecattr",err); return nil, err}
 		var veclen int32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
 			fmt.Println("Reading vector length failed -> ", err)
+			return nil, err
 		}
 		var arr = makeArray(msgtype, veclen).([]string)
 		for i := 0; i < int(veclen); i++ {
@@ -253,7 +260,8 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		return Dict{k, v}, nil
 	case 98:
 		var vecattr Attr
-		binary.Read(r, order, &vecattr)
+		err = binary.Read(r, order, &vecattr)
+		if err !=nil {fmt.Println("readData: Failed to read vecattr",err); return nil, err}
 		d, err := readData(r, order)
 		if err != nil {
 			return nil, err
@@ -274,6 +282,33 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		}
 		f.Body = b.(string)
 		return f, nil
+	case 101,102,103:
+		var primitiveidx byte
+		err = binary.Read(r,order,&primitiveidx)
+		if err!=nil {return nil, err}
+		return primitiveidx,nil
+	case 104,105:
+		// 104 - projection
+		// 105 - composition
+		var n int32
+		err = binary.Read(r,order,&n)
+		var res = make([]interface{},n)
+		for i:=0;i < int(n);i++ {
+			res[i],err = readData(r,order)
+			if err !=nil { return nil, err}
+		}
+		return res, nil
+	case 106,107,108,109,110,111:
+		// 106 - f'
+		// 107 - f/
+		// 108 - f\
+		// 109 - f':
+		// 110 - f/:
+		// 111 - f\:
+		return readData(r,order)
+	case 112:
+		// 112 - dynamic load
+		return nil, errors.New("type is unsupported")
 	case -128:
 		line, err := r.ReadBytes(0)
 		if err != nil {
