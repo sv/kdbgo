@@ -33,7 +33,6 @@ func TestSymbol(t *testing.T) {
 	b := []byte{0x01, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 0xf5, 0x47, 0x4f, 0x4f, 0x47, 0x00}
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, _ := Decode(r)
-	fmt.Println(d)
 	if d != "GOOG" {
 		t.Fail()
 	}
@@ -44,7 +43,6 @@ func TestCharArray(t *testing.T) {
 	b := []byte{0x01, 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x04, 0x00, 0x00, 0x00, 0x47, 0x4f, 0x4f, 0x47}
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, _ := Decode(r)
-	fmt.Println(d)
 	if d != "GOOG" {
 		t.Fail()
 	}
@@ -61,8 +59,6 @@ func TestIntVector(t *testing.T) {
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, _ := Decode(r)
 	if vec, ok := d.([]int32); ok {
-		fmt.Println(vec)
-
 		if len(vec) != 1 || vec[0] != int32(1) {
 			t.Fail()
 		}
@@ -76,8 +72,6 @@ func TestByteVector(t *testing.T) {
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, _ := Decode(r)
 	if vec, ok := d.([]byte); ok {
-		fmt.Println(vec)
-
 		if len(vec) != 5 || vec[4] != 0x04 {
 			t.Fail()
 		}
@@ -92,8 +86,6 @@ func TestGUIDVector(t *testing.T) {
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, _ := Decode(r)
 	if vec, ok := d.([]uuid.UUID); ok {
-		fmt.Println(vec[0].String())
-
 		if len(vec) != 1 || vec[0].String() != "ddb87915-b672-2c32-a6cf-296061671e9d" {
 			t.Fail()
 		}
@@ -107,7 +99,6 @@ func TestGUID(t *testing.T) {
 	d, _ := Decode(r)
 	var d1 uuid.UUID
 	d1 = d.(uuid.UUID)
-	fmt.Println(d1.String())
 	if d1.String() != "ddb87915-b672-2c32-a6cf-296061671e9d" {
 		t.Fail()
 	}
@@ -121,8 +112,6 @@ func TestTimespanVector(t *testing.T) {
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, _ := Decode(r)
 	if vec, ok := d.([]time.Duration); ok {
-		fmt.Println(vec[0].String())
-
 		if len(vec) != 2 || vec[0].String() != "1h22m33.444555666s" {
 			t.Fail()
 		}
@@ -138,8 +127,6 @@ func TestSymbolVec(t *testing.T) {
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, _ := Decode(r)
 	if vec, ok := d.([]string); ok {
-		fmt.Println(vec)
-
 		if len(vec) != 3 || vec[0] != "abc" || vec[1] != "bc" || vec[2] != "c" {
 			t.Fail()
 		}
@@ -159,8 +146,6 @@ func TestError(t *testing.T) {
 	if err.Error() != "type" {
 		t.Fail()
 	}
-
-	fmt.Println(err)
 }
 
 //
@@ -170,8 +155,22 @@ func TestDictWithAtoms(t *testing.T) {
 		0x63, 0x0b, 0x00, 0x02, 0x00, 0x00, 0x00, 0x61, 0x00, 0x62, 0x00, 0x06, 0x00,
 		0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00}
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _ := Decode(r)
-	fmt.Println(d)
+	dict, err := Decode(r)
+	d := dict.(Dict)
+	dk := d.Keys.([]string)
+	dv := d.Values.([]int32)
+	if err != nil {
+		t.Error("Failed decode - ", err)
+	}
+	if len(dk) != len(dv) {
+		t.Error("count[keys]!=count[values]")
+	}
+	if dk[0] != "a" || dk[1] != "b" {
+		t.Error("Wrong key decoding. Found ", dk)
+	}
+	if dv[0] != 2 || dv[1] != 3 {
+		t.Error("Wrong value decoding. Found ", dv)
+	}
 
 }
 
@@ -196,8 +195,22 @@ func TestDictWithVectors(t *testing.T) {
 		0x06, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01,
 		0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00}
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, err := Decode(r)
-	fmt.Println("Dict with vectors", d, err)
+	dict, err := Decode(r)
+	d := dict.(Dict)
+	dk := d.Keys.([]string)
+	dv := d.Values.([]interface{})
+	if err != nil {
+		t.Error("Failed decode - ", err)
+	}
+	if len(dk) != len(dv) {
+		t.Error("count[keys]!=count[values]")
+	}
+	if dk[0] != "a" || dk[1] != "b" {
+		t.Error("Wrong key decoding. Found ", dk)
+	}
+	if dv[0].([]int32)[0] != 2 || dv[1].([]int32)[0] != 3 {
+		t.Error("Wrong value decoding. Found ", dv)
+	}
 
 }
 
@@ -207,8 +220,24 @@ func TestTable(t *testing.T) {
 		0x00, 0x00, 0x00, 0x61, 0x00, 0x62, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01,
 		0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00}
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, err := Decode(r)
-	fmt.Println("Table:", d, err)
+	tbl, err := Decode(r)
+	if err != nil {
+		t.Error("Table decoding failed - ", err)
+	}
+
+	table := tbl.(Table)
+	if err != nil {
+		t.Error("Failed decode - ", err)
+	}
+	if len(table.Columns) != len(table.Data) {
+		t.Error("count[keys]!=count[values]")
+	}
+	if table.Columns[0] != "a" || table.Columns[1] != "b" {
+		t.Error("Wrong key decoding. Found ", table.Columns)
+	}
+	if table.Data[0].([]int32)[0] != 2 || table.Data[1].([]int32)[0] != 3 {
+		t.Error("Wrong value decoding. Found ", table.Data)
+	}
 
 }
 
@@ -218,8 +247,24 @@ func TestSortedTable(t *testing.T) {
 		0x00, 0x00, 0x61, 0x00, 0x62, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0x03, 0x01, 0x00,
 		0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00}
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, err := Decode(r)
-	fmt.Println("Sorted Table:", d, err)
+	tbl, err := Decode(r)
+	if err != nil {
+		t.Error("Sorted table decoding failed - ", err)
+	}
+
+	table := tbl.(Table)
+	if err != nil {
+		t.Error("Failed decode - ", err)
+	}
+	if len(table.Columns) != len(table.Data) {
+		t.Error("count[keys]!=count[values]")
+	}
+	if table.Columns[0] != "a" || table.Columns[1] != "b" {
+		t.Error("Wrong key decoding. Found ", table.Columns)
+	}
+	if table.Data[0].([]int32)[0] != 2 || table.Data[1].([]int32)[0] != 3 {
+		t.Error("Wrong value decoding. Found ", table.Data)
+	}
 
 }
 
@@ -253,7 +298,13 @@ func TestFunc(t *testing.T) {
 		0x00, 0x05, 0x00, 0x00, 0x00, 0x7b, 0x78, 0x2b, 0x79, 0x7d}
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, err := Decode(r)
-	fmt.Println("Function:", d, err)
+	if err != nil {
+		t.Error("Decoding failed - ", err)
+	}
+	f := d.(Function)
+	if f.Namespace != "" || f.Body != "{x+y}" {
+		t.Error("Function decoded incorrectly - ", f)
+	}
 }
 
 //q)\d .d
@@ -264,7 +315,14 @@ func TestFuncNonRoot(t *testing.T) {
 		0x00, 0x05, 0x00, 0x00, 0x00, 0x7b, 0x78, 0x2b, 0x79, 0x7d}
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, err := Decode(r)
-	fmt.Println("Function:", d, err)
+	if err != nil {
+		t.Error("Decoding failed - ", err)
+	}
+	f := d.(Function)
+	if f.Namespace != "d" || f.Body != "{x+y}" {
+		t.Error("Function in namespace decoded incorrectly - ", f)
+	}
+
 }
 
 // `byte$enlist til 5
@@ -272,7 +330,22 @@ func TestGeneralList(t *testing.T) {
 	b := []byte{0x01, 0x00, 0x00, 0x00, 0x19, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x04, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04}
 	r := bufio.NewReader(bytes.NewReader(b))
-	Decode(r)
+	d, err := Decode(r)
+	if err != nil {
+		t.Error("Decoding failed - ", err)
+	}
+	rawvec := d.([]interface{})
+	if len(rawvec) != 1 {
+		t.Error("Wrong vector length")
+	}
+	vec := rawvec[0].([]byte)
+	if len(vec) != 5 {
+		t.Error("Wrong first element vector lenght - ", len(vec))
+	}
+	if vec[0] != 0x00 || vec[1] != 0x01 || vec[2] != 0x02 || vec[3] != 0x03 || vec[4] != 0x04 {
+		t.Error("Unexpected data found:", vec)
+	}
+
 }
 
 //q)-8!1986.07.23D03:10:45.000639000 2013.06.10D20:49:14.999361000

@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
+	"github.com/golang/glog"
 	"github.com/nu7hatch/gouuid"
 	"time"
 )
@@ -44,6 +44,11 @@ type Table struct {
 type Dict struct {
 	Keys   interface{}
 	Values interface{}
+}
+
+type Function struct {
+	Namespace string
+	Body      string
 }
 
 func makeArray(vectype int8, veclen int32) interface{} {
@@ -100,7 +105,7 @@ func uncompress(b []byte) (dst []byte) {
 	var usize int32
 	binary.Read(bytes.NewReader(b[0:4]), binary.LittleEndian, &usize)
 	dst = make([]byte, usize)
-	fmt.Println("Uncompressed size=",usize)
+	glog.V(1).Infoln("Uncompressed size=", usize)
 	d := int32(4)
 	aa := make([]int32, 256)
 	for int(s) < len(dst) {
@@ -147,47 +152,49 @@ func Decode(src *bufio.Reader) (kobj interface{}, e error) {
 	var header ipcHeader
 	e = binary.Read(src, binary.LittleEndian, &header)
 	if e != nil {
-		fmt.Println("binary.Read failed:", e)
+		glog.Errorln("binary.Read failed:", e)
 		return nil, e
 	}
-	//fmt.Println("Header -> ", header)
+	glog.V(1).Infoln("Header -> ", header)
+	if int(header.RequestType) == SYNC {
+		return nil, errors.New("Sync request not yet supported")
+	}
 	var order = header.getByteOrder()
 	if header.Compressed == 0x01 {
-		//fmt.Println("Decoding compressed data. Size = ",header.MsgSize)
+		glog.V(1).Infoln("Decoding compressed data. Size = ", header.MsgSize)
 		compressed := make([]byte, header.MsgSize-8)
 		start := 0
-		//fmt.Println("Filling buffer",start,len(compressed))
+		glog.V(1).Infoln("Filling buffer", start, len(compressed))
 		for start < int(len(compressed)) {
-			//fmt.Println("Reading bytes = ",len(compressed[start:]))
+			glog.V(1).Infoln("Reading bytes = ", len(compressed[start:]))
 			n, e := src.Read(compressed[start:])
 			if e != nil {
-				fmt.Println("Decode:readcompressed error",e)
+				glog.Errorln("Decode:readcompressed error", e)
 				return nil, e
 			}
 			start += n
 		}
-		//fmt.Println("Uncompressing...")
+		glog.V(1).Infoln("Uncompressing...")
 		var uncompressed = uncompress(compressed)
-		//fmt.Println("Done.")
-		//fmt.Println(uncompressed[8:1000])
+		glog.V(1).Infoln("Done.")
+		glog.V(2).Infoln(uncompressed[8:1000])
 		var buf = bufio.NewReader(bytes.NewReader(uncompressed[8:]))
-		//fmt.Println("Decoding data")
+		glog.V(1).Infoln("Decoding data")
 		return readData(buf, order)
 	}
 	kobj, e = readData(src, order)
-	//fmt.Println("Object decoded",e)
-	//fmt.Println("buffered = ",src.Buffered())
+	glog.V(1).Infoln("Object decoded", e)
+	glog.V(1).Infoln("buffered = ", src.Buffered())
 	return kobj, e
 }
 func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err error) {
 	var msgtype int8
-	//var msglen = header.MsgSize
 	err = binary.Read(r, order, &msgtype)
 	if err != nil {
-		fmt.Println("readData:msgtype", err)
+		glog.Errorln("readData:msgtype", err)
 		return nil, err
 	}
-	//fmt.Println("Msg Type:", msgtype)
+	glog.V(1).Infoln("Msg Type:", msgtype)
 	switch msgtype {
 	case -1:
 		var b byte
@@ -254,19 +261,19 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			fmt.Println("readData: Failed to read vecattr", err)
+			glog.Errorln("readData: Failed to read vecattr", err)
 			return nil, err
 		}
 		var veclen int32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			fmt.Println("Reading vector length failed -> ", err)
+			glog.Errorln("Reading vector length failed -> ", err)
 			return nil, err
 		}
 		var arr = makeArray(msgtype, veclen)
 		err = binary.Read(r, order, arr)
 		if err != nil {
-			fmt.Println("Error during conversion -> ", err)
+			glog.Errorln("Error during conversion -> ", err)
 			return nil, err
 		}
 		if msgtype == 10 {
@@ -294,13 +301,13 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			fmt.Println("readData: Failed to read vecattr", err)
+			glog.Errorln("readData: Failed to read vecattr", err)
 			return nil, err
 		}
 		var veclen int32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			fmt.Println("Reading vector length failed -> ", err)
+			glog.Errorln("Reading vector length failed -> ", err)
 			return nil, err
 		}
 		var arr = make([]interface{}, veclen)
@@ -316,13 +323,13 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			fmt.Println("readData: Failed to read vecattr", err)
+			glog.Errorln("readData: Failed to read vecattr", err)
 			return nil, err
 		}
 		var veclen int32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			fmt.Println("Reading vector length failed -> ", err)
+			glog.Errorln("Reading vector length failed -> ", err)
 			return nil, err
 		}
 		var arr = makeArray(msgtype, veclen).([]string)
@@ -348,7 +355,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			fmt.Println("readData: Failed to read vecattr", err)
+			glog.Errorln("readData: Failed to read vecattr", err)
 			return nil, err
 		}
 		d, err := readData(r, order)
@@ -359,7 +366,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		return Table{dict.Keys.([]string), dict.Values.([]interface{})}, nil
 
 	case 100:
-		var f struct{ Namespace, Body string }
+		var f Function
 		line, err := r.ReadSlice(0)
 		if err != nil {
 			return nil, err
