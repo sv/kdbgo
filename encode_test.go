@@ -2,6 +2,7 @@ package kdb
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -111,6 +112,18 @@ func TestEGeneralList(t *testing.T) {
 	buf := new(bytes.Buffer)
 	var list = []interface{}{[]byte{0, 1, 2, 3, 4}}
 	err := Encode(buf, RESPONSE, list)
+	if err != nil {
+		t.Error("Encoding failed", err)
+	}
+	fmt.Printf("%x\n", buf)
+
+}
+
+func TestEError(t *testing.T) {
+	fmt.Println("Encoding 'type error")
+	buf := new(bytes.Buffer)
+	e := errors.New("type")
+	err := Encode(buf, RESPONSE, e)
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}

@@ -61,6 +61,11 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err er
 		binary.Write(dbuf, order, int8(98))
 		binary.Write(dbuf, order, NONE) // attributes
 		writeData(dbuf, order, Dict{data.Columns, data.Data})
+	case error:
+		data := data.(error)
+		binary.Write(dbuf, order, int8(-128))
+		binary.Write(dbuf, order, []byte(data.Error()))
+		binary.Write(dbuf, order, byte(0))
 
 	default:
 		usereflect = true
