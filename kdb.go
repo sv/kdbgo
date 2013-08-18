@@ -1,17 +1,17 @@
 package kdb
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
-	"bufio"
 	"net"
 	"time"
 )
 
 type KDBConn struct {
 	con     *net.TCPConn
-	rbuf	*bufio.Reader
+	rbuf    *bufio.Reader
 	Host    string
 	Port    string
 	userpwd string
@@ -76,12 +76,13 @@ func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (
 	}
 	var reply = make([]byte, 2+len(auth))
 	n, err := c.Read(reply)
+	fmt.Println(reply)
 	if err != nil {
 		return nil, err
 	}
 	if n != 1 {
 		return nil, errors.New("Authentication error. Max supported version - " + string(reply[0]))
 	}
-	kdbconn := KDBConn{c, bufio.NewReader(c),host, string(port), auth}
+	kdbconn := KDBConn{c, bufio.NewReader(c), host, string(port), auth}
 	return &kdbconn, nil
 }

@@ -1,8 +1,8 @@
 package kdb
 
 import (
-	"bytes"
 	"bufio"
+	"bytes"
 	"fmt"
 	"github.com/nu7hatch/gouuid"
 	"testing"
