@@ -44,12 +44,12 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err er
 	case []int32:
 		binary.Write(dbuf, order, int8(6))
 		binary.Write(dbuf, order, NONE) // attributes
-		binary.Write(dbuf, order, int32(binary.Size(data)/binary.Size(int32(1))))
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data).Len()))
 		binary.Write(dbuf, order, data)
 	case []byte:
 		binary.Write(dbuf, order, int8(4))
 		binary.Write(dbuf, order, NONE) // attributes
-		binary.Write(dbuf, order, int32(binary.Size(data)/binary.Size(byte(1))))
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data).Len()))
 		binary.Write(dbuf, order, data)
 	case Dict:
 		data := data.(Dict)
