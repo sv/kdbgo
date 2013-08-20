@@ -8,6 +8,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/nu7hatch/gouuid"
 	"time"
+	"io"
 )
 
 const (
@@ -163,16 +164,10 @@ func Decode(src *bufio.Reader) (kobj interface{}, e error) {
 	if header.Compressed == 0x01 {
 		glog.V(1).Infoln("Decoding compressed data. Size = ", header.MsgSize)
 		compressed := make([]byte, header.MsgSize-8)
-		start := 0
-		glog.V(1).Infoln("Filling buffer", start, len(compressed))
-		for start < int(len(compressed)) {
-			glog.V(1).Infoln("Reading bytes = ", len(compressed[start:]))
-			n, e := src.Read(compressed[start:])
-			if e != nil {
-				glog.Errorln("Decode:readcompressed error", e)
-				return nil, e
-			}
-			start += n
+		glog.V(1).Infoln("Filling buffer", len(compressed))
+		_,e = io.ReadFull(src,compressed)
+		if e!=nil {
+			glog.Errorln("Decode:readcompressed error - ",e)
 		}
 		glog.V(1).Infoln("Uncompressing...")
 		var uncompressed = uncompress(compressed)
