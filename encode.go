@@ -11,6 +11,7 @@ import (
 
 func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err error) {
 	usereflect := false
+	fmt.Println(reflect.TypeOf(data))
 	switch data.(type) {
 	case string:
 		data := data.(string)
@@ -41,8 +42,32 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err er
 	case int32:
 		binary.Write(dbuf, order, int8(-6))
 		binary.Write(dbuf, order, data)
+	case int64:
+		binary.Write(dbuf, order, int8(-7))
+		binary.Write(dbuf, order, data)
+	case float32:
+		binary.Write(dbuf, order, int8(-8))
+		binary.Write(dbuf, order, data)
+	case float64:
+		binary.Write(dbuf, order, int8(-9))
+		binary.Write(dbuf, order, data)
 	case []int32:
 		binary.Write(dbuf, order, int8(6))
+		binary.Write(dbuf, order, NONE) // attributes
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data).Len()))
+		binary.Write(dbuf, order, data)
+	case []int64:
+		binary.Write(dbuf, order, int8(7))
+		binary.Write(dbuf, order, NONE) // attributes
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data).Len()))
+		binary.Write(dbuf, order, data)
+	case []float32:
+		binary.Write(dbuf, order, int8(8))
+		binary.Write(dbuf, order, NONE) // attributes
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data).Len()))
+		binary.Write(dbuf, order, data)
+	case []float64:
+		binary.Write(dbuf, order, int8(9))
 		binary.Write(dbuf, order, NONE) // attributes
 		binary.Write(dbuf, order, int32(reflect.ValueOf(data).Len()))
 		binary.Write(dbuf, order, data)
@@ -79,9 +104,9 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err er
 	dk := dv.Kind()
 	fmt.Println(dk)
 	if dk == reflect.Slice || dk == reflect.Array {
-		//fmt.Println(dv.Type().Elem())
+		fmt.Println(dv.Type().Elem())
 		if dv.Type().Elem().Kind() == reflect.Interface {
-			//fmt.Println("Encoding generic array")
+			fmt.Println("Encoding generic array")
 
 			binary.Write(dbuf, order, int8(0))
 			binary.Write(dbuf, order, NONE) // attributes
