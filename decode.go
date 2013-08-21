@@ -5,10 +5,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	//"fmt"
 	"github.com/golang/glog"
 	"github.com/nu7hatch/gouuid"
-	"time"
 	"io"
+	"reflect"
+	"time"
+	"unsafe"
 )
 
 const (
@@ -51,6 +54,24 @@ type Function struct {
 	Namespace string
 	Body      string
 }
+
+var TypeSize = map[int8]int{
+	1: 1, 4: 1, 10: 1,
+	2: 16,
+	5: 2,
+	6: 4, 8: 4, 14: 4, 17: 4, 18: 4, 19: 4,
+	7: 8, 9: 8, 15: 8}
+
+var TypeReflect = map[int8]reflect.Type{
+	6:  reflect.TypeOf([]int32{}),
+	7:  reflect.TypeOf([]int64{}),
+	8:  reflect.TypeOf([]float32{}),
+	9:  reflect.TypeOf([]float64{}),
+	14: reflect.TypeOf([]int32{}),
+	15: reflect.TypeOf([]float64{}),
+	17: reflect.TypeOf([]int32{}),
+	18: reflect.TypeOf([]int32{}),
+	19: reflect.TypeOf([]int32{})}
 
 func makeArray(vectype int8, veclen int32) interface{} {
 	switch vectype {
@@ -165,9 +186,9 @@ func Decode(src *bufio.Reader) (kobj interface{}, e error) {
 		glog.V(1).Infoln("Decoding compressed data. Size = ", header.MsgSize)
 		compressed := make([]byte, header.MsgSize-8)
 		glog.V(1).Infoln("Filling buffer", len(compressed))
-		_,e = io.ReadFull(src,compressed)
-		if e!=nil {
-			glog.Errorln("Decode:readcompressed error - ",e)
+		_, e = io.ReadFull(src, compressed)
+		if e != nil {
+			glog.Errorln("Decode:readcompressed error - ", e)
 		}
 		glog.V(1).Infoln("Uncompressing...")
 		var uncompressed = uncompress(compressed)
@@ -182,6 +203,7 @@ func Decode(src *bufio.Reader) (kobj interface{}, e error) {
 	glog.V(1).Infoln("buffered = ", src.Buffered())
 	return kobj, e
 }
+
 func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err error) {
 	var msgtype int8
 	err = binary.Read(r, order, &msgtype)
@@ -265,8 +287,20 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			glog.Errorln("Reading vector length failed -> ", err)
 			return nil, err
 		}
-		var arr = makeArray(msgtype, veclen)
-		err = binary.Read(r, order, arr)
+		var arr interface{}
+		if msgtype >= 6 && msgtype <= 9 {
+			bytedata := make([]byte, int(veclen)*TypeSize[msgtype])
+			_, err = io.ReadFull(r, bytedata)
+			head := (*reflect.SliceHeader)(unsafe.Pointer(&bytedata))
+			head.Len = int(veclen)
+			head.Cap = int(veclen)
+			//fmt.Println(head, bytedata)
+			arr = reflect.Indirect(reflect.NewAt(TypeReflect[msgtype], unsafe.Pointer(&bytedata))).Interface()
+			//fmt.Println(arr)
+		} else {
+			arr = makeArray(msgtype, veclen)
+			err = binary.Read(r, order, arr)
+		}
 		if err != nil {
 			glog.Errorln("Error during conversion -> ", err)
 			return nil, err
@@ -337,15 +371,16 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		}
 		return arr, nil
 	case 99, 127:
-		k, err := readData(r, order)
+		var res Dict
+		res.Keys, err = readData(r, order)
 		if err != nil {
 			return nil, err
 		}
-		v, err := readData(r, order)
+		res.Values, err = readData(r, order)
 		if err != nil {
 			return nil, err
 		}
-		return Dict{k, v}, nil
+		return res, nil
 	case 98:
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
