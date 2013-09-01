@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	//"fmt"
+	"fmt"
 	"github.com/golang/glog"
 	"github.com/nu7hatch/gouuid"
 	"io"
@@ -36,9 +36,32 @@ var ErrBadHeader = errors.New("Bad header")
 var QEpoch = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 type Month int32
+
+func (m Month) String() string {
+	return fmt.Sprintf("%v.%02vm", 2000+int(m/12), int(m)%12)
+}
+
 type Minute time.Time
+
+func (m Minute) String() string {
+	time := time.Time(m)
+	return fmt.Sprintf("%02v:%02v", time.Hour(), time.Minute())
+
+}
+
 type Second time.Time
+
+func (s Second) String() string {
+	time := time.Time(s)
+	return fmt.Sprintf("%02v:%02v:%02v", time.Hour(), time.Minute(), time.Second())
+}
+
 type Time time.Time
+
+func (t Time) String() string {
+	time := time.Time(t)
+	return fmt.Sprintf("%02v:%02v:%02v.%03v", time.Hour(), time.Minute(), time.Second(), int(time.Nanosecond()/1000000))
+}
 
 type Table struct {
 	Columns []string
@@ -48,6 +71,10 @@ type Table struct {
 type Dict struct {
 	Keys   interface{}
 	Values interface{}
+}
+
+func (d Dict) String() string {
+	return fmt.Sprintf("%v!%v", d.Keys, d.Values)
 }
 
 type Function struct {
@@ -314,6 +341,43 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			var timearr = make([]time.Time, veclen)
 			for i := 0; i < int(veclen); i++ {
 				timearr[i] = QEpoch.Add(arr[i])
+			}
+			return timearr, nil
+		}
+
+		if msgtype == 14 {
+			arr := arr.([]int32)
+			var timearr = make([]time.Time, veclen)
+			for i := 0; i < int(veclen); i++ {
+				d := time.Duration(arr[i]) * 24 * time.Hour
+				timearr[i] = QEpoch.Add(d)
+			}
+			return timearr, nil
+		}
+		if msgtype == 15 {
+			arr := arr.([]float64)
+			var timearr = make([]time.Time, veclen)
+			for i := 0; i < int(veclen); i++ {
+				d := time.Duration(86400000*arr[i]) * time.Millisecond
+				timearr[i] = QEpoch.Add(d)
+			}
+			return timearr, nil
+		}
+		if msgtype == 17 {
+			arr := arr.([]int32)
+			var timearr = make([]Minute, veclen)
+			for i := 0; i < int(veclen); i++ {
+				d := time.Duration(arr[i]) * time.Minute
+				timearr[i] = Minute(time.Time{}.Add(d))
+			}
+			return timearr, nil
+		}
+		if msgtype == 18 {
+			arr := arr.([]int32)
+			var timearr = make([]Second, veclen)
+			for i := 0; i < int(veclen); i++ {
+				d := time.Duration(arr[i]) * time.Second
+				timearr[i] = Second(time.Time{}.Add(d))
 			}
 			return timearr, nil
 		}

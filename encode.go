@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
+	"github.com/golang/glog"
 	"io"
 	"reflect"
 )
 
 func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err error) {
 	usereflect := false
-	fmt.Println(reflect.TypeOf(data))
+	glog.V(1).Infoln(reflect.TypeOf(data))
 	switch data.(type) {
 	case string:
 		data := data.(string)
@@ -92,11 +92,11 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err er
 		binary.Write(dbuf, order, []byte(data.Error()))
 		binary.Write(dbuf, order, byte(0))
 	case Function:
-		data:=data.(Function)
-		binary.Write(dbuf,order,int8(100))
-		binary.Write(dbuf,order,[]byte(data.Namespace))
+		data := data.(Function)
+		binary.Write(dbuf, order, int8(100))
+		binary.Write(dbuf, order, []byte(data.Namespace))
 		binary.Write(dbuf, order, byte(0))
-		writeData(dbuf,order,data.Body)
+		writeData(dbuf, order, data.Body)
 
 	default:
 		usereflect = true
@@ -108,11 +108,11 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err er
 	//use reflection
 	dv := reflect.ValueOf(data)
 	dk := dv.Kind()
-	fmt.Println(dk)
+	glog.V(1).Infoln(dk)
 	if dk == reflect.Slice || dk == reflect.Array {
-		fmt.Println(dv.Type().Elem())
+		glog.V(1).Infoln(dv.Type().Elem())
 		if dv.Type().Elem().Kind() == reflect.Interface {
-			fmt.Println("Encoding generic array")
+			glog.V(1).Infoln("Encoding generic array")
 
 			binary.Write(dbuf, order, int8(0))
 			binary.Write(dbuf, order, NONE) // attributes
@@ -121,7 +121,6 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err er
 				writeData(dbuf, order, dv.Index(i).Interface())
 			}
 			return nil
-			//return errors.New("nyi")
 		}
 	}
 	return errors.New("unknown type")

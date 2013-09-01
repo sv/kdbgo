@@ -157,7 +157,7 @@ func TestEError(t *testing.T) {
 func TestEFunction(t *testing.T) {
 	fmt.Println("Encoding function in root namespace")
 	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, Function{Namespace:"",Body:"{x+y}"})
+	err := Encode(buf, ASYNC, Function{Namespace: "", Body: "{x+y}"})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -171,7 +171,7 @@ func TestEFunction(t *testing.T) {
 func TestEFunctionNonRoot(t *testing.T) {
 	fmt.Println("Encoding function in non-root namespace")
 	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, Function{Namespace:"d",Body:"{x+y}"})
+	err := Encode(buf, ASYNC, Function{Namespace: "d", Body: "{x+y}"})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
