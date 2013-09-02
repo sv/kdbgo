@@ -1,3 +1,6 @@
+// Package kdb implements encoding and decoding of q ipc message format
+package kdb
+
 /*
 Kdb+ type name	Kdb+ type number	Encoded type name	C type	Size in bytes	Interface list accessor function
 mixed list	0	-	K	-	kK
@@ -23,4 +26,3 @@ table/flip	98	XT	-	-	x->k
 dict/table with primary keys	99	XD	-	-	kK(x)[0] for keys and kK(x)[1] for values
 error	-128	-	char*	4 or 8	kS
 */
-package kdb

@@ -14,7 +14,7 @@ var BoolBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0xff, 0x0
 func TestBool(t *testing.T) {
 	b := BoolBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _ := Decode(r)
+	d, _, _ := Decode(r)
 	if d.(bool) {
 		t.Fail()
 	}
@@ -26,7 +26,7 @@ var IntBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x0d, 0x00, 0x00, 0x00, 0xfa, 0x01
 func TestInt(t *testing.T) {
 	b := IntBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _ := Decode(r)
+	d, _, _ := Decode(r)
 	if d != int32(1) {
 		t.Fail()
 	}
@@ -36,7 +36,7 @@ func TestInt(t *testing.T) {
 func TestSymbol(t *testing.T) {
 	b := []byte{0x01, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 0xf5, 0x47, 0x4f, 0x4f, 0x47, 0x00}
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _ := Decode(r)
+	d, _, _ := Decode(r)
 	if d != "GOOG" {
 		t.Fail()
 	}
@@ -48,7 +48,7 @@ var CharArrayBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x0a
 func TestCharArray(t *testing.T) {
 	b := CharArrayBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _ := Decode(r)
+	d, _, _ := Decode(r)
 	if d != "GOOG" {
 		t.Fail()
 	}
@@ -65,7 +65,7 @@ var IntVectorBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x06
 func TestIntVector(t *testing.T) {
 	b := IntVectorBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _ := Decode(r)
+	d, _, _ := Decode(r)
 	if vec, ok := d.([]int32); ok {
 		if len(vec) != 1 || vec[0] != int32(1) {
 			t.Fail()
@@ -80,7 +80,7 @@ var ByteVectorBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x13, 0x00, 0x00, 0x00, 0x0
 func TestByteVector(t *testing.T) {
 	b := ByteVectorBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _ := Decode(r)
+	d, _, _ := Decode(r)
 	if vec, ok := d.([]byte); ok {
 		if len(vec) != 5 || vec[4] != 0x04 {
 			t.Fail()
@@ -94,7 +94,7 @@ func TestGUIDVector(t *testing.T) {
 	b := []byte{0x01, 0x00, 0x00, 0x00, 0x1e, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01,
 		0x00, 0x00, 0x00, 0xdd, 0xb8, 0x79, 0x15, 0xb6, 0x72, 0x2c, 0x32, 0xa6, 0xcf, 0x29, 0x60, 0x61, 0x67, 0x1e, 0x9d}
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _ := Decode(r)
+	d, _, _ := Decode(r)
 	if vec, ok := d.([]uuid.UUID); ok {
 		if len(vec) != 1 || vec[0].String() != "ddb87915-b672-2c32-a6cf-296061671e9d" {
 			t.Fail()
@@ -106,7 +106,7 @@ func TestGUID(t *testing.T) {
 	b := []byte{0x01, 0x00, 0x00, 0x00, 0x19, 0x00, 0x00, 0x00,
 		0xfe, 0xdd, 0xb8, 0x79, 0x15, 0xb6, 0x72, 0x2c, 0x32, 0xa6, 0xcf, 0x29, 0x60, 0x61, 0x67, 0x1e, 0x9d}
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _ := Decode(r)
+	d, _, _ := Decode(r)
 	var d1 uuid.UUID
 	d1 = d.(uuid.UUID)
 	if d1.String() != "ddb87915-b672-2c32-a6cf-296061671e9d" {
@@ -120,7 +120,7 @@ func TestTimespanVector(t *testing.T) {
 	b := []byte{0x01, 0x00, 0x00, 0x00, 0x1e, 0x00, 0x00, 0x00, 0x10, 0x00, 0x02, 0x00, 0x00, 0x00,
 		0x92, 0x9b, 0x4d, 0x50, 0x81, 0x04, 0x00, 0x00, 0x24, 0x37, 0x9b, 0xa0, 0x02, 0x09, 0x00, 0x00}
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _ := Decode(r)
+	d, _, _ := Decode(r)
 	if vec, ok := d.([]time.Duration); ok {
 		if len(vec) != 2 || vec[0].String() != "1h22m33.444555666s" {
 			t.Fail()
@@ -137,7 +137,7 @@ func TestSymbolVec(t *testing.T) {
 
 	b := SymbolVectorBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _ := Decode(r)
+	d, _, _ := Decode(r)
 	if vec, ok := d.([]string); ok {
 		if len(vec) != 3 || vec[0] != "abc" || vec[1] != "bc" || vec[2] != "c" {
 			t.Fail()
@@ -152,7 +152,7 @@ var ErrorBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 0x80, 0x
 func TestError(t *testing.T) {
 	b := ErrorBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, err := Decode(r)
+	d, _, err := Decode(r)
 	if d != nil {
 		t.Fail()
 	}
@@ -171,7 +171,7 @@ var DictWithAtomsBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x21, 0x00, 0x00, 0x00,
 func TestDictWithAtoms(t *testing.T) {
 	b := DictWithAtomsBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	dict, err := Decode(r)
+	dict, _, err := Decode(r)
 	d := dict.(Dict)
 	dk := d.Keys.([]string)
 	dv := d.Values.([]int32)
@@ -196,7 +196,7 @@ func TestSortedDict(t *testing.T) {
 		0x00, 0x00, 0x00, 0x61, 0x00, 0x62, 0x00, 0x06,
 		0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00}
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, err := Decode(r)
+	d, _, err := Decode(r)
 	fmt.Println("Sorted dict", d, err)
 	if err != nil {
 		t.Fail()
@@ -213,7 +213,7 @@ var DictWithVectorsBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x2d, 0x00, 0x00, 0x00
 func TestDictWithVectors(t *testing.T) {
 	b := DictWithVectorsBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	dict, err := Decode(r)
+	dict, _, err := Decode(r)
 	d := dict.(Dict)
 	dk := d.Keys.([]string)
 	dv := d.Values.([]interface{})
@@ -240,7 +240,7 @@ var TableBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x2f, 0x00, 0x00, 0x00, 0x62, 0x
 func TestTable(t *testing.T) {
 	b := TableBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	tbl, err := Decode(r)
+	tbl, _, err := Decode(r)
 	if err != nil {
 		t.Error("Table decoding failed - ", err)
 	}
@@ -267,7 +267,7 @@ func TestSortedTable(t *testing.T) {
 		0x00, 0x00, 0x61, 0x00, 0x62, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0x03, 0x01, 0x00,
 		0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00}
 	r := bufio.NewReader(bytes.NewReader(b))
-	tbl, err := Decode(r)
+	tbl, _, err := Decode(r)
 	if err != nil {
 		t.Error("Sorted table decoding failed - ", err)
 	}
@@ -297,7 +297,7 @@ var KeyedTableBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x3f, 0x00, 0x00, 0x00, 0x6
 func TestKeyedTable(t *testing.T) {
 	b := KeyedTableBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, err := Decode(r)
+	d, _, err := Decode(r)
 	fmt.Println("Keyed Table:", d, err)
 
 }
@@ -309,7 +309,7 @@ func TestSortedKeyedTable(t *testing.T) {
 		0x00, 0x00, 0x00, 0x62, 0x00, 0x63, 0x0b, 0x00, 0x01, 0x00, 0x00, 0x00, 0x62, 0x00, 0x00, 0x00, 0x01, 0x00,
 		0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00}
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, err := Decode(r)
+	d, _, err := Decode(r)
 	fmt.Println("Sorted Keyed Table:", d, err)
 
 }
@@ -321,7 +321,7 @@ var FuncBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x15, 0x00, 0x00, 0x00, 0x64, 0x0
 func TestFunc(t *testing.T) {
 	b := FuncBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, err := Decode(r)
+	d, _, err := Decode(r)
 	if err != nil {
 		t.Error("Decoding failed - ", err)
 	}
@@ -340,7 +340,7 @@ var FuncNonRootBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00, 0x
 func TestFuncNonRoot(t *testing.T) {
 	b := FuncNonRootBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, err := Decode(r)
+	d, _, err := Decode(r)
 	if err != nil {
 		t.Error("Decoding failed - ", err)
 	}
@@ -358,7 +358,7 @@ var GeneralListBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x19, 0x00, 0x00, 0x00,
 func TestGeneralList(t *testing.T) {
 	b := GeneralListBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, err := Decode(r)
+	d, _, err := Decode(r)
 	if err != nil {
 		t.Error("Decoding failed - ", err)
 	}
@@ -381,7 +381,7 @@ func TestTimestampVec(t *testing.T) {
 	b := []byte{0x01, 0x00, 0x00, 0x00, 0x1e, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x02, 0x00, 0x00, 0x00, 0x18, 0x92,
 		0x00, 0xc6, 0xed, 0xe4, 0x1c, 0xfa, 0xe8, 0x6d, 0xff, 0x39, 0x12, 0x1b, 0xe3, 0x05}
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, err := Decode(r)
+	d, _, err := Decode(r)
 	fmt.Println(d)
 	if err != nil {
 		t.Error("Decoding failed.", err)

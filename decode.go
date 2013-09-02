@@ -14,12 +14,14 @@ import (
 	"unsafe"
 )
 
+// Request type
 const (
 	ASYNC    int = 0
 	SYNC     int = 1
 	RESPONSE int = 2
 )
 
+// Vector attributes
 type Attr int8
 
 const (
@@ -30,17 +32,25 @@ const (
 	GROUPED
 )
 
+// message is malformated or invalid
 var ErrBadMsg = errors.New("Bad Message")
+
+// msg header is invalid
 var ErrBadHeader = errors.New("Bad header")
 
-var QEpoch = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+// Cannot process sync requests
+var ErrSyncRequest = errors.New("nosyncrequest")
 
+var qEpoch = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+// kdb month
 type Month int32
 
 func (m Month) String() string {
 	return fmt.Sprintf("%v.%02vm", 2000+int(m/12), int(m)%12)
 }
 
+// kdb minute type
 type Minute time.Time
 
 func (m Minute) String() string {
@@ -49,6 +59,7 @@ func (m Minute) String() string {
 
 }
 
+// kdb second
 type Second time.Time
 
 func (s Second) String() string {
@@ -56,6 +67,7 @@ func (s Second) String() string {
 	return fmt.Sprintf("%02v:%02v:%02v", time.Hour(), time.Minute(), time.Second())
 }
 
+// kdb time
 type Time time.Time
 
 func (t Time) String() string {
@@ -63,11 +75,13 @@ func (t Time) String() string {
 	return fmt.Sprintf("%02v:%02v:%02v.%03v", time.Hour(), time.Minute(), time.Second(), int(time.Nanosecond()/1000000))
 }
 
+// Table
 type Table struct {
 	Columns []string
 	Data    []interface{}
 }
 
+// Dictionary: ordered key->value mapping
 type Dict struct {
 	Keys   interface{}
 	Values interface{}
@@ -77,19 +91,20 @@ func (d Dict) String() string {
 	return fmt.Sprintf("%v!%v", d.Keys, d.Values)
 }
 
+// Struct that represents q function
 type Function struct {
 	Namespace string
 	Body      string
 }
 
-var TypeSize = map[int8]int{
+var typeSize = map[int8]int{
 	1: 1, 4: 1, 10: 1,
 	2: 16,
 	5: 2,
 	6: 4, 8: 4, 14: 4, 17: 4, 18: 4, 19: 4,
 	7: 8, 9: 8, 15: 8}
 
-var TypeReflect = map[int8]reflect.Type{
+var typeReflect = map[int8]reflect.Type{
 	6:  reflect.TypeOf([]int32{}),
 	7:  reflect.TypeOf([]int64{}),
 	8:  reflect.TypeOf([]float32{}),
@@ -197,17 +212,16 @@ func uncompress(b []byte) (dst []byte) {
 	}
 	return dst
 }
-func Decode(src *bufio.Reader) (kobj interface{}, e error) {
+
+// Decodes data from src in q ipc format.
+func Decode(src *bufio.Reader) (data interface{}, msgtype int, e error) {
 	var header ipcHeader
 	e = binary.Read(src, binary.LittleEndian, &header)
 	if e != nil {
-		glog.Errorln("binary.Read failed:", e)
-		return nil, e
+		glog.Errorln("Failed to read message header:", e)
+		return nil, -1, e
 	}
 	glog.V(1).Infoln("Header -> ", header)
-	if int(header.RequestType) == SYNC {
-		return nil, errors.New("Sync request not yet supported")
-	}
 	var order = header.getByteOrder()
 	if header.Compressed == 0x01 {
 		glog.V(1).Infoln("Decoding compressed data. Size = ", header.MsgSize)
@@ -223,12 +237,13 @@ func Decode(src *bufio.Reader) (kobj interface{}, e error) {
 		glog.V(2).Infoln(uncompressed[8:1000])
 		var buf = bufio.NewReader(bytes.NewReader(uncompressed[8:]))
 		glog.V(1).Infoln("Decoding data")
-		return readData(buf, order)
+		data, e = readData(buf, order)
+		return data, int(header.RequestType), e
 	}
-	kobj, e = readData(src, order)
+	data, e = readData(src, order)
 	glog.V(1).Infoln("Object decoded", e)
 	glog.V(1).Infoln("buffered = ", src.Buffered())
-	return kobj, e
+	return data, int(header.RequestType), e
 }
 
 func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err error) {
@@ -316,13 +331,13 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		}
 		var arr interface{}
 		if msgtype >= 6 && msgtype <= 9 {
-			bytedata := make([]byte, int(veclen)*TypeSize[msgtype])
+			bytedata := make([]byte, int(veclen)*typeSize[msgtype])
 			_, err = io.ReadFull(r, bytedata)
 			head := (*reflect.SliceHeader)(unsafe.Pointer(&bytedata))
 			head.Len = int(veclen)
 			head.Cap = int(veclen)
 			//fmt.Println(head, bytedata)
-			arr = reflect.Indirect(reflect.NewAt(TypeReflect[msgtype], unsafe.Pointer(&bytedata))).Interface()
+			arr = reflect.Indirect(reflect.NewAt(typeReflect[msgtype], unsafe.Pointer(&bytedata))).Interface()
 			//fmt.Println(arr)
 		} else {
 			arr = makeArray(msgtype, veclen)
@@ -340,7 +355,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			arr := arr.([]time.Duration)
 			var timearr = make([]time.Time, veclen)
 			for i := 0; i < int(veclen); i++ {
-				timearr[i] = QEpoch.Add(arr[i])
+				timearr[i] = qEpoch.Add(arr[i])
 			}
 			return timearr, nil
 		}
@@ -350,7 +365,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			var timearr = make([]time.Time, veclen)
 			for i := 0; i < int(veclen); i++ {
 				d := time.Duration(arr[i]) * 24 * time.Hour
-				timearr[i] = QEpoch.Add(d)
+				timearr[i] = qEpoch.Add(d)
 			}
 			return timearr, nil
 		}
@@ -359,7 +374,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			var timearr = make([]time.Time, veclen)
 			for i := 0; i < int(veclen); i++ {
 				d := time.Duration(86400000*arr[i]) * time.Millisecond
-				timearr[i] = QEpoch.Add(d)
+				timearr[i] = qEpoch.Add(d)
 			}
 			return timearr, nil
 		}
@@ -385,7 +400,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			arr := arr.([]int32)
 			var timearr = make([]Time, veclen)
 			for i := 0; i < int(veclen); i++ {
-				timearr[i] = Time(QEpoch.Add(time.Duration(arr[i]) * time.Millisecond))
+				timearr[i] = Time(qEpoch.Add(time.Duration(arr[i]) * time.Millisecond))
 			}
 			return timearr, nil
 		}

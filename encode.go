@@ -125,6 +125,8 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data interface{}) (err er
 	}
 	return errors.New("unknown type")
 }
+
+// Encode data to ipc format as msgtype(sync/async/response) to specified writer
 func Encode(w io.Writer, msgtype int, data interface{}) (err error) {
 	var order = binary.LittleEndian
 	dbuf := new(bytes.Buffer)
