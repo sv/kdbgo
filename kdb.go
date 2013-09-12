@@ -41,11 +41,11 @@ func HandleClientConnection(conn net.Conn) {
 	}
 	glog.V(1).Infoln("capabilities:", n, cred[:n])
 	c.Write(cred[n-2 : n-1])
-	rbuf := bufio.NewReader(conn)
+	rbuf := bufio.NewReaderSize(conn, 4*1024*1024)
 	glog.V(1).Infoln("authenticated")
 	i := 0
 	for {
-		d, msgtype, err := Decode(rbuf)
+		_, msgtype, err := Decode(rbuf)
 
 		if err == io.EOF {
 			conn.Close()
@@ -54,9 +54,8 @@ func HandleClientConnection(conn net.Conn) {
 		}
 		if msgtype == SYNC {
 			Encode(conn, RESPONSE, ErrSyncRequest)
-		} else {
-			Encode(conn, RESPONSE, d)
 		}
+		// don't respond
 		i++
 		glog.V(1).Infoln("msgnum#", i)
 	}

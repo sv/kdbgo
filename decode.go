@@ -222,6 +222,9 @@ func Decode(src *bufio.Reader) (data interface{}, msgtype int, e error) {
 		return nil, -1, e
 	}
 	glog.V(1).Infoln("Header -> ", header)
+	// try to buffer entire message in one go
+	src.Peek(int(header.MsgSize - 8))
+
 	var order = header.getByteOrder()
 	if header.Compressed == 0x01 {
 		glog.V(1).Infoln("Decoding compressed data. Size = ", header.MsgSize)
@@ -230,6 +233,7 @@ func Decode(src *bufio.Reader) (data interface{}, msgtype int, e error) {
 		_, e = io.ReadFull(src, compressed)
 		if e != nil {
 			glog.Errorln("Decode:readcompressed error - ", e)
+			return nil, int(header.RequestType), e
 		}
 		glog.V(1).Infoln("Uncompressing...")
 		var uncompressed = uncompress(compressed)
@@ -336,9 +340,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			head := (*reflect.SliceHeader)(unsafe.Pointer(&bytedata))
 			head.Len = int(veclen)
 			head.Cap = int(veclen)
-			//fmt.Println(head, bytedata)
 			arr = reflect.Indirect(reflect.NewAt(typeReflect[msgtype], unsafe.Pointer(&bytedata))).Interface()
-			//fmt.Println(arr)
 		} else {
 			arr = makeArray(msgtype, veclen)
 			err = binary.Read(r, order, arr)
