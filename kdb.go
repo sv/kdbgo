@@ -26,6 +26,7 @@ type KDBConn struct {
 
 // Close connection to the server
 func (c *KDBConn) Close() error {
+  panic(c);
 	return c.con.Close()
 }
 
@@ -91,6 +92,14 @@ func (c *KDBConn) AsyncCall(cmd string, args ...interface{}) (err error) {
 // Send response to asynchronous request
 func (c *KDBConn) Response(data interface{}) (err error) {
 	return Encode(c.con, RESPONSE, data)
+}
+
+func (c *KDBConn) ReadMessage() (data interface{}, msgtype int, e error) {
+	return Decode(c.rbuf)
+}
+
+func (c *KDBConn) WriteMessage(msgtype int, data interface{}) (err error) {
+	return Encode(c.con, msgtype, data)
 }
 
 // Connect to host:port using supplies user:password. Wait until connected
