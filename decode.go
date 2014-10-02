@@ -5,97 +5,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"github.com/golang/glog"
-	"github.com/nu7hatch/gouuid"
 	"io"
 	"reflect"
 	"time"
 	"unsafe"
+
+	"github.com/golang/glog"
+	"github.com/nu7hatch/gouuid"
 )
-
-// Request type
-const (
-	ASYNC    int = 0
-	SYNC     int = 1
-	RESPONSE int = 2
-)
-
-// Vector attributes
-type Attr int8
-
-const (
-	NONE Attr = iota
-	SORTED
-	UNIQUE
-	PARTED
-	GROUPED
-)
-
-// message is malformated or invalid
-var ErrBadMsg = errors.New("Bad Message")
-
-// msg header is invalid
-var ErrBadHeader = errors.New("Bad header")
-
-// Cannot process sync requests
-var ErrSyncRequest = errors.New("nosyncrequest")
-
-var qEpoch = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
-
-// kdb month
-type Month int32
-
-func (m Month) String() string {
-	return fmt.Sprintf("%v.%02vm", 2000+int(m/12), int(m)%12)
-}
-
-// kdb minute type
-type Minute time.Time
-
-func (m Minute) String() string {
-	time := time.Time(m)
-	return fmt.Sprintf("%02v:%02v", time.Hour(), time.Minute())
-
-}
-
-// kdb second
-type Second time.Time
-
-func (s Second) String() string {
-	time := time.Time(s)
-	return fmt.Sprintf("%02v:%02v:%02v", time.Hour(), time.Minute(), time.Second())
-}
-
-// kdb time
-type Time time.Time
-
-func (t Time) String() string {
-	time := time.Time(t)
-	return fmt.Sprintf("%02v:%02v:%02v.%03v", time.Hour(), time.Minute(), time.Second(), int(time.Nanosecond()/1000000))
-}
-
-// Table
-type Table struct {
-	Columns []string
-	Data    []interface{}
-}
-
-// Dictionary: ordered key->value mapping
-type Dict struct {
-	Keys   interface{}
-	Values interface{}
-}
-
-func (d Dict) String() string {
-	return fmt.Sprintf("%v!%v", d.Keys, d.Values)
-}
-
-// Struct that represents q function
-type Function struct {
-	Namespace string
-	Body      string
-}
 
 var typeSize = map[int8]int{
 	1: 1, 4: 1, 10: 1,
@@ -140,14 +57,6 @@ func makeArray(vectype int8, veclen int32) interface{} {
 	}
 
 	return nil
-}
-
-type ipcHeader struct {
-	ByteOrder   byte
-	RequestType byte
-	Compressed  byte
-	Reserved    byte
-	MsgSize     int32
 }
 
 func (h *ipcHeader) getByteOrder() binary.ByteOrder {
@@ -453,14 +362,15 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		return arr, nil
 	case 99, 127:
 		var res Dict
-		res.Keys, err = readData(r, order)
+		dk, err := readData(r, order)
 		if err != nil {
 			return nil, err
 		}
-		res.Values, err = readData(r, order)
+		dv, err := readData(r, order)
 		if err != nil {
 			return nil, err
 		}
+		res = Dict{K{&k{K0, NONE, dk}}, K{&k{K0, NONE, dv}}}
 		return res, nil
 	case 98:
 		var vecattr Attr
@@ -474,7 +384,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			return nil, err
 		}
 		dict := d.(Dict)
-		return Table{dict.Keys.([]string), dict.Values.([]interface{})}, nil
+		return Table{dict.Keys.Data.([]string), dict.Values.Data.([]K)}, nil
 
 	case 100:
 		var f Function

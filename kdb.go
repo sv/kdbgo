@@ -5,10 +5,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
 	"io"
 	"net"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 // 0 - v2.5, no compression, no timestamp, no timespan, no uuid
@@ -26,7 +27,7 @@ type KDBConn struct {
 
 // Close connection to the server
 func (c *KDBConn) Close() error {
-  panic(c);
+	panic(c)
 	return c.con.Close()
 }
 
@@ -54,7 +55,7 @@ func HandleClientConnection(conn net.Conn) {
 			return
 		}
 		if msgtype == SYNC {
-			Encode(conn, RESPONSE, ErrSyncRequest)
+			Encode(conn, RESPONSE, K{&k{KERR, NONE, ErrSyncRequest}})
 		}
 		// don't respond
 		i++
@@ -70,7 +71,7 @@ func (c *KDBConn) Call(cmd string, args ...interface{}) (data interface{}, err e
 	} else {
 		sending = append([]interface{}{cmd}, args)
 	}
-	err = Encode(c.con, SYNC, sending)
+	err = Encode(c.con, SYNC, K{&k{K0, NONE, sending}})
 	if err != nil {
 		return nil, err
 	}
@@ -86,11 +87,11 @@ func (c *KDBConn) AsyncCall(cmd string, args ...interface{}) (err error) {
 	} else {
 		sending = append([]interface{}{cmd}, args)
 	}
-	return Encode(c.con, ASYNC, sending)
+	return Encode(c.con, ASYNC, K{&k{K0, NONE, sending}})
 }
 
 // Send response to asynchronous request
-func (c *KDBConn) Response(data interface{}) (err error) {
+func (c *KDBConn) Response(data K) (err error) {
 	return Encode(c.con, RESPONSE, data)
 }
 
@@ -98,7 +99,7 @@ func (c *KDBConn) ReadMessage() (data interface{}, msgtype int, e error) {
 	return Decode(c.rbuf)
 }
 
-func (c *KDBConn) WriteMessage(msgtype int, data interface{}) (err error) {
+func (c *KDBConn) WriteMessage(msgtype int, data K) (err error) {
 	return Encode(c.con, msgtype, data)
 }
 
