@@ -2,7 +2,8 @@ package kdb_test
 
 import (
 	"fmt"
-	"github.com/sv/kdbgo"
+
+	"bitbucket.org/svidyuk/kdbgo"
 )
 
 func ExampleKDBConn_Call() {
