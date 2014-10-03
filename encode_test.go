@@ -10,7 +10,7 @@ import (
 func TestEBool(t *testing.T) {
 	fmt.Println("Encoding true")
 	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, false)
+	err := Encode(buf, ASYNC, &K{-KB, NONE, false})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -22,7 +22,7 @@ func TestEBool(t *testing.T) {
 func TestEInt(t *testing.T) {
 	fmt.Println("Encoding 1i")
 	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, int32(1))
+	err := Encode(buf, ASYNC, &K{-KI, NONE, int32(1)})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -34,7 +34,7 @@ func TestEInt(t *testing.T) {
 func TestEIntList(t *testing.T) {
 	fmt.Println("Encoding enlist 1i")
 	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, []int32{1})
+	err := Encode(buf, ASYNC, &K{KI, NONE, []int32{1}})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -47,7 +47,7 @@ func TestEIntList(t *testing.T) {
 func TestEByteVector(t *testing.T) {
 	fmt.Println("Encoding `byte$til 5")
 	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, []byte{0, 1, 2, 3, 4})
+	err := Encode(buf, ASYNC, &K{KB, NONE, []byte{0, 1, 2, 3, 4}})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -60,7 +60,7 @@ func TestEByteVector(t *testing.T) {
 func TestECharArray(t *testing.T) {
 	fmt.Println("Encoding \"GOOG\"")
 	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, "GOOG")
+	err := Encode(buf, ASYNC, &K{KC, NONE, "GOOG"})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -73,7 +73,7 @@ func TestECharArray(t *testing.T) {
 func TestESymbolArray(t *testing.T) {
 	fmt.Println("Encoding `abc`bc`c")
 	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, []string{"abc", "bc", "c"})
+	err := Encode(buf, ASYNC, &K{KS, NONE, []string{"abc", "bc", "c"}})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -87,8 +87,8 @@ func TestESymbolArray(t *testing.T) {
 func TestEDictWithAtoms(t *testing.T) {
 	fmt.Println("Encoding `a`b!2 3")
 	buf := new(bytes.Buffer)
-	dict := Dict{[]string{"a", "b"}, []int32{2, 3}}
-	err := Encode(buf, ASYNC, dict)
+	dict := Dict{&K{KS, NONE, []string{"a", "b"}}, &K{KI, NONE, []int32{2, 3}}}
+	err := Encode(buf, ASYNC, &K{XD, NONE, dict})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -101,8 +101,8 @@ func TestEDictWithAtoms(t *testing.T) {
 func TestEDictWithVectors(t *testing.T) {
 	fmt.Println("Encoding `a`b!enlist each 2 3")
 	buf := new(bytes.Buffer)
-	dict := Dict{[]string{"a", "b"}, []interface{}{[]int32{2}, []int32{3}}}
-	err := Encode(buf, ASYNC, dict)
+	dict := Dict{&K{KS, NONE, []string{"a", "b"}}, &K{K0, NONE, []interface{}{[]int32{2}, []int32{3}}}}
+	err := Encode(buf, ASYNC, &K{XD, NONE, dict})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -112,11 +112,12 @@ func TestEDictWithVectors(t *testing.T) {
 
 }
 
+/*
 func TestETable(t *testing.T) {
 	fmt.Println("Encoding ([]a:enlist 2;b:enlist 3)")
 	buf := new(bytes.Buffer)
-	dict := Table{[]string{"a", "b"}, []interface{}{[]int32{2}, []int32{3}}}
-	err := Encode(buf, ASYNC, dict)
+	dict := Table{[]string{"a", "b"}, &K{K0, NONE, []interface{}{[]int32{2}, []int32{3}}}}
+	err := Encode(buf, ASYNC, &K{XT, NONE, dict})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -125,12 +126,12 @@ func TestETable(t *testing.T) {
 	}
 
 }
-
+*/
 func TestEGeneralList(t *testing.T) {
 	fmt.Println("Encoding `byte$enlist til 5")
 	buf := new(bytes.Buffer)
 	var list = []interface{}{[]byte{0, 1, 2, 3, 4}}
-	err := Encode(buf, ASYNC, list)
+	err := Encode(buf, ASYNC, &K{K0, NONE, list})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -144,7 +145,7 @@ func TestEError(t *testing.T) {
 	fmt.Println("Encoding 'type error")
 	buf := new(bytes.Buffer)
 	e := errors.New("type")
-	err := Encode(buf, ASYNC, e)
+	err := Encode(buf, ASYNC, &K{KERR, NONE, e})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -157,7 +158,7 @@ func TestEError(t *testing.T) {
 func TestEFunction(t *testing.T) {
 	fmt.Println("Encoding function in root namespace")
 	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, Function{Namespace: "", Body: "{x+y}"})
+	err := Encode(buf, ASYNC, &K{KFUNC, NONE, Function{Namespace: "", Body: "{x+y}"}})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -171,7 +172,7 @@ func TestEFunction(t *testing.T) {
 func TestEFunctionNonRoot(t *testing.T) {
 	fmt.Println("Encoding function in non-root namespace")
 	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, Function{Namespace: "d", Body: "{x+y}"})
+	err := Encode(buf, ASYNC, &K{KFUNC, NONE, Function{Namespace: "d", Body: "{x+y}"}})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}

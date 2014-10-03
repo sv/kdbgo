@@ -57,6 +57,7 @@ func TestAsyncCall(t *testing.T) {
 	}
 }
 
+/*
 func TestAsyncCall2(t *testing.T) {
 	con, _ := DialKDB(testHost, testPort, "")
 	fmt.Println("Testing async function call with parameters")
@@ -72,10 +73,11 @@ func TestAsyncCall2(t *testing.T) {
 		t.Error("Unexpected result:", res)
 	}
 }
+*/
 
 func TestResponse(t *testing.T) {
 	con, _ := DialKDB(testHost, testPort, "")
-	err := con.Response("show `response;1 2 3")
+	err := con.Response(&K{KC, NONE, "show `response;1 2 3"})
 	if err != nil {
 		t.Error("Sending response failed", err)
 	}

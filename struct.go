@@ -80,13 +80,23 @@ type ipcHeader struct {
 	MsgSize     int32
 }
 
-//const Nh int16 = 0xFFFF8000
+const (
+	nh = 0xFFFF8000
+	ni = 0x80000000
+	nj = 0x8000000000000000
+)
+
+//var Nh int16 = *(*int16)(unsafe.Pointer(&nh))
+
 const Wh int16 = math.MaxInt16
 
 //const Ni int32 = 1 << 31
+//var Ni = *(*int32)(unsafe.Pointer(&ni))
+
 const Wi int32 = math.MaxInt32
 
-// const Nj int64 = math.MaxInt64
+//var Nj int64 = *(*int64)(unsafe.Pointer(&nj))
+
 const Wj int64 = math.MaxInt64
 
 var Nf float64 = math.NaN()
