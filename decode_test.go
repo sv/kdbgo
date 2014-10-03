@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/nu7hatch/gouuid"
 	"testing"
 	"time"
+
+	"github.com/nu7hatch/gouuid"
 )
 
 var BoolBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0xff, 0x00}
@@ -15,7 +16,7 @@ func TestBool(t *testing.T) {
 	b := BoolBytes
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, _, _ := Decode(r)
-	if d.(bool) {
+	if d.Data.(bool) {
 		t.Fail()
 	}
 }
@@ -27,7 +28,7 @@ func TestInt(t *testing.T) {
 	b := IntBytes
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, _, _ := Decode(r)
-	if d != int32(1) {
+	if d.Data.(int32) != int32(1) {
 		t.Fail()
 	}
 }
@@ -37,7 +38,7 @@ func TestSymbol(t *testing.T) {
 	b := []byte{0x01, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 0xf5, 0x47, 0x4f, 0x4f, 0x47, 0x00}
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, _, _ := Decode(r)
-	if d != "GOOG" {
+	if d.Data.(string) != "GOOG" {
 		t.Fail()
 	}
 }
@@ -49,7 +50,7 @@ func TestCharArray(t *testing.T) {
 	b := CharArrayBytes
 	r := bufio.NewReader(bytes.NewReader(b))
 	d, _, _ := Decode(r)
-	if d != "GOOG" {
+	if d.Data.(string) != "GOOG" {
 		t.Fail()
 	}
 }

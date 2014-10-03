@@ -3,6 +3,7 @@ package kdb
 import (
 	"errors"
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -80,25 +81,21 @@ type ipcHeader struct {
 }
 
 //const Nh int16 = 0xFFFF8000
-const Wh int16 = 0x7FFF
+const Wh int16 = math.MaxInt16
 
-//const Ni int32 = 0x80000000
-const Wi int32 = 0x7FFFFFFF
+//const Ni int32 = 1 << 31
+const Wi int32 = math.MaxInt32
 
-//const Nj int64 = 0x8000000000000000
-const Wj int64 = 0x7FFFFFFFFFFFFFFF
+// const Nj int64 = math.MaxInt64
+const Wj int64 = math.MaxInt64
 
-//const Nf float64 = (0 / 0.0)
-//const Wf float64 = (1 / 0.0)
+var Nf float64 = math.NaN()
+var Wf float64 = math.Inf(1)
 
-type k struct {
+type K struct {
 	Type int8
 	Attr Attr
 	Data interface{}
-}
-
-type K struct {
-	*k
 }
 
 // message is malformated or invalid
@@ -147,13 +144,13 @@ func (t Time) String() string {
 // Table
 type Table struct {
 	Columns []string
-	Data    []K
+	Data    []*K
 }
 
 // Dictionary: ordered key->value mapping
 type Dict struct {
-	Keys   K
-	Values K
+	Keys   *K
+	Values *K
 }
 
 func (d Dict) String() string {

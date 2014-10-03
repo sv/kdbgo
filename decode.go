@@ -123,7 +123,7 @@ func uncompress(b []byte) (dst []byte) {
 }
 
 // Decodes data from src in q ipc format.
-func Decode(src *bufio.Reader) (data interface{}, msgtype int, e error) {
+func Decode(src *bufio.Reader) (data *K, msgtype int, e error) {
 	var header ipcHeader
 	e = binary.Read(src, binary.LittleEndian, &header)
 	if e != nil {
@@ -159,7 +159,7 @@ func Decode(src *bufio.Reader) (data interface{}, msgtype int, e error) {
 	return data, int(header.RequestType), e
 }
 
-func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err error) {
+func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 	var msgtype int8
 	err = binary.Read(r, order, &msgtype)
 	if err != nil {
@@ -168,65 +168,65 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 	}
 	glog.V(1).Infoln("Msg Type:", msgtype)
 	switch msgtype {
-	case -1:
+	case -KB:
 		var b byte
 		binary.Read(r, order, &b)
-		return b != 0x0, nil
+		return &K{msgtype, NONE, b != 0x0}, nil
 
-	case -2:
+	case -UU:
 		var u uuid.UUID
 		binary.Read(r, order, &u)
-		return u, nil
+		return &K{msgtype, NONE, u}, nil
 
-	case -4:
+	case -KG:
 		var b byte
 		binary.Read(r, order, &b)
-		return b, nil
-	case -5:
+		return &K{msgtype, NONE, b}, nil
+	case -KH:
 		var sh int16
 		binary.Read(r, order, &sh)
-		return sh, nil
+		return &K{msgtype, NONE, sh}, nil
 
-	case -6:
+	case -KI:
 		var i int32
 		binary.Read(r, order, &i)
-		return i, nil
-	case -7:
+		return &K{msgtype, NONE, i}, nil
+	case -KJ:
 		var j int64
 		binary.Read(r, order, &j)
-		return j, nil
-	case -8:
+		return &K{msgtype, NONE, j}, nil
+	case -KE:
 		var e float32
 		binary.Read(r, order, &e)
-		return e, nil
-	case -9:
+		return &K{msgtype, NONE, e}, nil
+	case -KF:
 		var f float64
 		binary.Read(r, order, &f)
-		return f, nil
-	case -10:
+		return &K{msgtype, NONE, f}, nil
+	case -KC:
 		var c byte
 		binary.Read(r, order, &c)
-		return c, nil // should be rune?
-	case -11:
+		return &K{msgtype, NONE, c}, nil // should be rune?
+	case -KS:
 		line, err := r.ReadBytes(0)
 		if err != nil {
 			return nil, err
 		}
 		str := string(line[:len(line)-1])
 
-		return str, nil
-	case -12:
+		return &K{msgtype, NONE, str}, nil
+	case -KP:
 		var ts time.Duration
 		binary.Read(r, order, &ts)
-		return ts, nil
-	case -13:
+		return &K{msgtype, NONE, ts}, nil
+	case -KM:
 		var m Month
 		binary.Read(r, order, &m)
-		return m, nil
-	case -16:
+		return &K{msgtype, NONE, m}, nil
+	case -KN:
 		var span time.Duration
 		binary.Read(r, order, &span)
-		return span, nil
+		return &K{msgtype, NONE, span}, nil
 	case -14, -15, -17, -18, -19:
 		return nil, errors.New("NotImplemetedYet")
 	case 1, 2, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19:
@@ -258,8 +258,8 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			glog.Errorln("Error during conversion -> ", err)
 			return nil, err
 		}
-		if msgtype == 10 {
-			return string(arr.([]byte)), nil
+		if msgtype == KC {
+			return &K{msgtype, vecattr, string(arr.([]byte))}, nil
 		}
 
 		if msgtype == 12 {
@@ -268,7 +268,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			for i := 0; i < int(veclen); i++ {
 				timearr[i] = qEpoch.Add(arr[i])
 			}
-			return timearr, nil
+			return &K{msgtype, vecattr, timearr}, nil
 		}
 
 		if msgtype == 14 {
@@ -278,7 +278,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 				d := time.Duration(arr[i]) * 24 * time.Hour
 				timearr[i] = qEpoch.Add(d)
 			}
-			return timearr, nil
+			return &K{msgtype, vecattr, timearr}, nil
 		}
 		if msgtype == 15 {
 			arr := arr.([]float64)
@@ -287,7 +287,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 				d := time.Duration(86400000*arr[i]) * time.Millisecond
 				timearr[i] = qEpoch.Add(d)
 			}
-			return timearr, nil
+			return &K{msgtype, vecattr, timearr}, nil
 		}
 		if msgtype == 17 {
 			arr := arr.([]int32)
@@ -296,7 +296,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 				d := time.Duration(arr[i]) * time.Minute
 				timearr[i] = Minute(time.Time{}.Add(d))
 			}
-			return timearr, nil
+			return &K{msgtype, vecattr, timearr}, nil
 		}
 		if msgtype == 18 {
 			arr := arr.([]int32)
@@ -305,7 +305,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 				d := time.Duration(arr[i]) * time.Second
 				timearr[i] = Second(time.Time{}.Add(d))
 			}
-			return timearr, nil
+			return &K{msgtype, vecattr, timearr}, nil
 		}
 		if msgtype == 19 {
 			arr := arr.([]int32)
@@ -313,10 +313,10 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			for i := 0; i < int(veclen); i++ {
 				timearr[i] = Time(qEpoch.Add(time.Duration(arr[i]) * time.Millisecond))
 			}
-			return timearr, nil
+			return &K{msgtype, vecattr, timearr}, nil
 		}
-		return arr, nil
-	case 0:
+		return &K{msgtype, vecattr, arr}, nil
+	case K0:
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
@@ -337,8 +337,8 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			}
 			arr[i] = v
 		}
-		return arr, nil
-	case 11:
+		return &K{msgtype, vecattr, arr}, nil
+	case KS:
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
@@ -359,7 +359,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 			}
 			arr[i] = string(line[:len(line)-1])
 		}
-		return arr, nil
+		return &K{msgtype, vecattr, arr}, nil
 	case 99, 127:
 		var res Dict
 		dk, err := readData(r, order)
@@ -370,8 +370,8 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		if err != nil {
 			return nil, err
 		}
-		res = Dict{K{&k{K0, NONE, dk}}, K{&k{K0, NONE, dv}}}
-		return res, nil
+		res = Dict{&K{K0, NONE, dk}, &K{K0, NONE, dv}}
+		return &K{msgtype, NONE, res}, nil
 	case 98:
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
@@ -383,8 +383,8 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		if err != nil {
 			return nil, err
 		}
-		dict := d.(Dict)
-		return Table{dict.Keys.Data.([]string), dict.Values.Data.([]K)}, nil
+		dict := d.Data.(Dict)
+		return &K{msgtype, vecattr, Table{dict.Keys.Data.([]string), dict.Values.Data.([]*K)}}, nil
 
 	case 100:
 		var f Function
@@ -397,15 +397,15 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 		if err != nil {
 			return nil, err
 		}
-		f.Body = b.(string)
-		return f, nil
+		f.Body = b.Data.(string)
+		return &K{msgtype, NONE, f}, nil
 	case 101, 102, 103:
 		var primitiveidx byte
 		err = binary.Read(r, order, &primitiveidx)
 		if err != nil {
 			return nil, err
 		}
-		return primitiveidx, nil
+		return &K{msgtype, NONE, primitiveidx}, nil
 	case 104, 105:
 		// 104 - projection
 		// 105 - composition
@@ -418,7 +418,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj interface{}, err er
 				return nil, err
 			}
 		}
-		return res, nil
+		return &K{msgtype, NONE, res}, nil
 	case 106, 107, 108, 109, 110, 111:
 		// 106 - f'
 		// 107 - f/

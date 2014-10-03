@@ -10,7 +10,7 @@ import (
 	"github.com/golang/glog"
 )
 
-func writeData(dbuf io.Writer, order binary.ByteOrder, data K) (err error) {
+func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	glog.V(1).Infoln(reflect.TypeOf(data))
 	switch data.Type {
 	case -KS:
@@ -85,7 +85,7 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data K) (err error) {
 		tosend := data.Data.(Table)
 		binary.Write(dbuf, order, XT)
 		binary.Write(dbuf, order, NONE) // attributes
-		writeData(dbuf, order, K{&k{XD, NONE, Dict{K{&k{KS, NONE, tosend.Columns}}, K{&k{K0, NONE, tosend.Data}}}}})
+		writeData(dbuf, order, &K{XD, NONE, Dict{&K{KS, NONE, tosend.Columns}, &K{K0, NONE, tosend.Data}}})
 	case KERR:
 		tosend := data.Data.(error)
 		binary.Write(dbuf, order, int8(-128))
@@ -96,7 +96,7 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data K) (err error) {
 		binary.Write(dbuf, order, int8(100))
 		binary.Write(dbuf, order, []byte(tosend.Namespace))
 		binary.Write(dbuf, order, byte(0))
-		writeData(dbuf, order, K{&k{KS, NONE, tosend.Body}})
+		writeData(dbuf, order, &K{KS, NONE, tosend.Body})
 
 	default:
 		return errors.New("unknown type")
@@ -106,7 +106,7 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data K) (err error) {
 }
 
 // Encode data to ipc format as msgtype(sync/async/response) to specified writer
-func Encode(w io.Writer, msgtype int, data K) (err error) {
+func Encode(w io.Writer, msgtype int, data *K) (err error) {
 	var order = binary.LittleEndian
 	dbuf := new(bytes.Buffer)
 	err = writeData(dbuf, order, data)
