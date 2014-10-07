@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
 
@@ -13,7 +12,6 @@ import (
 
 func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	glog.V(1).Infoln(reflect.TypeOf(data))
-	fmt.Println(data.Type)
 	switch data.Type {
 	case K0:
 		tosend := data.Data.([]*K)
@@ -57,39 +55,10 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 			val = 0x00
 		}
 		binary.Write(dbuf, order, val)
-	case -KI:
+	case -KI, -KJ, -KE, -KF:
 		binary.Write(dbuf, order, int8(data.Type))
 		binary.Write(dbuf, order, data.Data)
-	case -KJ:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Data)
-	case -KE:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Data)
-	case -KF:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Data)
-	case KI:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, NONE) // attributes
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
-		binary.Write(dbuf, order, data.Data)
-	case KJ:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, NONE) // attributes
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
-		binary.Write(dbuf, order, data.Data)
-	case KE:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, NONE) // attributes
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
-		binary.Write(dbuf, order, data.Data)
-	case KF:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, NONE) // attributes
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
-		binary.Write(dbuf, order, data.Data)
-	case KG:
+	case KG, KI, KJ, KE, KF:
 		binary.Write(dbuf, order, int8(data.Type))
 		binary.Write(dbuf, order, NONE) // attributes
 		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
