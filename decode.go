@@ -384,7 +384,10 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			return nil, err
 		}
 		dict := d.Data.(Dict)
-		return &K{msgtype, vecattr, Table{dict.Key.Data.([]string), dict.Value.Data.([]*K)}}, nil
+		colNames := dict.Key.Data.(*K).Data.([]string)
+		colValues := dict.Value.Data.(*K).Data.([]*K)
+		//fmt.Println(colValues)
+		return &K{msgtype, vecattr, Table{colNames, colValues}}, nil
 
 	case KFUNC:
 		var f Function
