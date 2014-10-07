@@ -13,7 +13,7 @@ func ExampleKDBConn_Call() {
 		return
 	}
 
-	res, err := con.Call("til", int32(10))
+	res, err := con.Call("til", &kdb.K{-kdb.KI, kdb.NONE, int32(10)})
 	if err != nil {
 		fmt.Println("Query failed:", err)
 	}

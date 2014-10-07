@@ -37,10 +37,10 @@ func TestSyncCall(t *testing.T) {
 	con, _ := DialKDB(testHost, testPort, "")
 	fmt.Println("Testing sync function call")
 	_, _ = con.Call("show `testreq;(.q;.Q;.h;.o);1000000#0i")
-	//fmt.Println("Result:", res, err)
-	//if res.(string) != "test" {
-	//	t.Error("Unexpected result:", res)
-	//}
+	/*fmt.Println("Result:", res, err)
+	if res.(string) != "test" {
+		t.Error("Unexpected result:", res)
+	}*/
 }
 
 func TestAsyncCall(t *testing.T) {
@@ -52,7 +52,7 @@ func TestAsyncCall(t *testing.T) {
 	// check result
 	res, err := con.Call("asynctest")
 	fmt.Println("Result:", res, err)
-	if !res.(bool) {
+	if !res.(*K).Data.(bool) {
 		t.Error("Unexpected result:", res)
 	}
 }

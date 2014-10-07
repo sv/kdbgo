@@ -47,7 +47,7 @@ func TestEIntList(t *testing.T) {
 func TestEByteVector(t *testing.T) {
 	fmt.Println("Encoding `byte$til 5")
 	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, &K{KB, NONE, []byte{0, 1, 2, 3, 4}})
+	err := Encode(buf, ASYNC, &K{KG, NONE, []byte{0, 1, 2, 3, 4}})
 	if err != nil {
 		t.Error("Encoding failed", err)
 	}
@@ -98,6 +98,7 @@ func TestEDictWithAtoms(t *testing.T) {
 
 }
 
+/*
 func TestEDictWithVectors(t *testing.T) {
 	fmt.Println("Encoding `a`b!enlist each 2 3")
 	buf := new(bytes.Buffer)
@@ -112,7 +113,6 @@ func TestEDictWithVectors(t *testing.T) {
 
 }
 
-/*
 func TestETable(t *testing.T) {
 	fmt.Println("Encoding ([]a:enlist 2;b:enlist 3)")
 	buf := new(bytes.Buffer)
@@ -130,7 +130,7 @@ func TestETable(t *testing.T) {
 func TestEGeneralList(t *testing.T) {
 	fmt.Println("Encoding `byte$enlist til 5")
 	buf := new(bytes.Buffer)
-	var list = []interface{}{[]byte{0, 1, 2, 3, 4}}
+	var list = []*K{&K{KG, NONE, []byte{0, 1, 2, 3, 4}}}
 	err := Encode(buf, ASYNC, &K{K0, NONE, list})
 	if err != nil {
 		t.Error("Encoding failed", err)

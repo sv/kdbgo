@@ -27,7 +27,6 @@ type KDBConn struct {
 
 // Close connection to the server
 func (c *KDBConn) Close() error {
-	panic(c)
 	return c.con.Close()
 }
 
@@ -64,14 +63,14 @@ func HandleClientConnection(conn net.Conn) {
 }
 
 // Make synchronous call to server similar to h(func;arg1;arg2;...)
-func (c *KDBConn) Call(cmd string, args ...interface{}) (data interface{}, err error) {
-	var sending interface{}
+func (c *KDBConn) Call(cmd string, args ...*K) (data interface{}, err error) {
+	var sending *K
 	if len(args) == 0 {
-		sending = cmd
+		sending = &K{KC, NONE, cmd}
 	} else {
-		sending = append([]interface{}{cmd}, args)
+		sending = &K{K0, NONE, append([]*K{&K{KC, NONE, cmd}}, args...)}
 	}
-	err = Encode(c.con, SYNC, &K{K0, NONE, sending})
+	err = Encode(c.con, SYNC, sending)
 	if err != nil {
 		return nil, err
 	}
@@ -80,14 +79,14 @@ func (c *KDBConn) Call(cmd string, args ...interface{}) (data interface{}, err e
 }
 
 // Make asynchronous request to server
-func (c *KDBConn) AsyncCall(cmd string, args ...interface{}) (err error) {
-	var sending interface{}
+func (c *KDBConn) AsyncCall(cmd string, args ...*K) (err error) {
+	var sending *K
 	if len(args) == 0 {
-		sending = cmd
+		sending = &K{KC, NONE, cmd}
 	} else {
-		sending = append([]interface{}{cmd}, args)
+		sending = &K{K0, NONE, append([]*K{&K{KC, NONE, cmd}}, args...)}
 	}
-	return Encode(c.con, ASYNC, &K{K0, NONE, sending})
+	return Encode(c.con, ASYNC, sending)
 }
 
 // Send response to asynchronous request

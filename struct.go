@@ -159,12 +159,12 @@ type Table struct {
 
 // Dictionary: ordered key->value mapping
 type Dict struct {
-	Keys   *K
-	Values *K
+	Key   *K
+	Value *K
 }
 
 func (d Dict) String() string {
-	return fmt.Sprintf("%v!%v", d.Keys, d.Values)
+	return fmt.Sprintf("%v!%v", d.Key, d.Value)
 }
 
 // Struct that represents q function
