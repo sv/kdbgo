@@ -1,9 +1,11 @@
 package kdb
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
+	"reflect"
 	"time"
 )
 
@@ -42,12 +44,11 @@ const (
 	KP int8 = 12 // 8 timestamp long   kJ (nanoseconds from 2000.01.01)
 	KM int8 = 13 // 4 month     int    kI (months from 2000.01.01)
 	KD int8 = 14 // 4 date      int    kI (days from 2000.01.01)
-
+	KZ int8 = 15 // 8 datetime  double kF (DO NOT USE)
 	KN int8 = 16 // 8 timespan  long   kJ (nanoseconds)
 	KU int8 = 17 // 4 minute    int    kI
 	KV int8 = 18 // 4 second    int    kI
 	KT int8 = 19 // 4 time      int    kI (millisecond)
-	KZ int8 = 15 // 8 datetime  double kF (DO NOT USE)
 
 	// table,dict
 	XT int8 = 98 //   x->k is XD
@@ -108,6 +109,51 @@ type K struct {
 	Data interface{}
 }
 
+func (o *K) Len() int32 {
+	if o.Type < K0 || o.Type >= KFUNC {
+		return 1
+	} else if o.Type >= K0 && o.Type <= KZ {
+		return int32(reflect.ValueOf(o.Data).Len())
+	} else if o.Type == XD {
+		return o.Data.(Dict).Key.Len()
+	} else if o.Type == XT {
+		return int32(len(o.Data.(Table).Columns))
+	} else {
+		return -1
+	}
+}
+
+func (k K) String() string {
+	if k.Type < 0 {
+		return fmt.Sprint(k.Data)
+	}
+	if k.Type > 0 && k.Type < 20 {
+		return fmt.Sprint(k.Data)
+	}
+	switch k.Type {
+	case K0:
+		list := k.Data.([]*K)
+		var buf bytes.Buffer
+		buf.WriteString("(")
+		for i, l := range list {
+			buf.WriteString(l.String())
+			if i < len(list)-1 {
+				buf.WriteString(";")
+			}
+		}
+		buf.WriteString(")")
+		return buf.String()
+	case XD:
+		return k.Data.(Dict).String()
+	case XT:
+		return k.Data.(Table).String()
+	case KFUNC:
+		return k.Data.(Function).Body
+	default:
+		return "unknown"
+	}
+}
+
 // message is malformated or invalid
 var ErrBadMsg = errors.New("Bad Message")
 
@@ -155,6 +201,23 @@ func (t Time) String() string {
 type Table struct {
 	Columns []string
 	Data    []*K
+}
+
+func (tbl Table) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("+")
+	buf.WriteString(fmt.Sprint(tbl.Columns))
+	buf.WriteString("!")
+	buf.WriteString("(")
+	for i, l := range tbl.Data {
+		buf.WriteString(l.String())
+		if i < len(tbl.Data)-1 {
+			buf.WriteString(";")
+		}
+	}
+	buf.WriteString(")")
+	return buf.String()
+
 }
 
 // Dictionary: ordered key->value mapping
