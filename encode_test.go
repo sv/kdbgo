@@ -139,6 +139,19 @@ func TestEGeneralList(t *testing.T) {
 
 }
 
+func TestEGenericList2(t *testing.T) {
+	fmt.Println("Encoding (\"ac\";`b;`)")
+	buf := new(bytes.Buffer)
+	var list = []*K{&K{KC, NONE, "ac"}, &K{-KS, NONE, "b"}, &K{-KS, NONE, ""}}
+	err := Encode(buf, ASYNC, &K{K0, NONE, list})
+	if err != nil {
+		t.Error("Encoding failed", err)
+	}
+	if !bytes.Equal(buf.Bytes(), GenericList2Bytes) {
+		t.Error("Encoding is incorrect")
+	}
+}
+
 func TestEError(t *testing.T) {
 	fmt.Println("Encoding 'type error")
 	buf := new(bytes.Buffer)

@@ -25,8 +25,6 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		tosend := data.Data.(string)
 
 		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, NONE) // attributes
-		binary.Write(dbuf, order, int32(len(tosend)))
 		binary.Write(dbuf, order, []byte(tosend))
 		binary.Write(dbuf, order, byte(0))
 	case KC:

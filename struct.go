@@ -7,6 +7,7 @@ import (
 	"math"
 	"reflect"
 	"time"
+	"unicode"
 )
 
 // Request type
@@ -112,22 +113,41 @@ type K struct {
 func (o *K) Len() int32 {
 	if o.Type < K0 || o.Type >= KFUNC {
 		return 1
-	} else if o.Type >= K0 && o.Type <= KZ {
+	} else if o.Type >= K0 && o.Type <= KT {
 		return int32(reflect.ValueOf(o.Data).Len())
 	} else if o.Type == XD {
 		return o.Data.(Dict).Key.Len()
 	} else if o.Type == XT {
-		return int32(len(o.Data.(Table).Columns))
+		return o.Data.(Table).Data[0].Len()
 	} else {
 		return -1
 	}
 }
 
+func (o *K) Index(i int) interface{} {
+	if o.Type < K0 || o.Type > XT {
+		return nil
+	}
+	if o.Len() == 0 {
+		return nil
+	}
+	if o.Type >= K0 && o.Type <= KT {
+		return reflect.ValueOf(o.Data).Index(i).Interface()
+	}
+	// case for table
+	// need to return dict with header
+	if o.Type != XT {
+		return nil
+	}
+	var t = o.Data.(Table)
+	return &K{XD, NONE, t.Index(i)}
+}
+
 func (k K) String() string {
-	if k.Type < 0 {
+	if k.Type < K0 {
 		return fmt.Sprint(k.Data)
 	}
-	if k.Type > 0 && k.Type < 20 {
+	if k.Type > K0 && k.Type <= KT {
 		return fmt.Sprint(k.Data)
 	}
 	switch k.Type {
@@ -203,6 +223,24 @@ type Table struct {
 	Data    []*K
 }
 
+func (tbl *Table) Index(i int) Dict {
+	var d = Dict{}
+	d.Key = &K{KS, NONE, tbl.Columns}
+	vslice := make([]*K, len(tbl.Columns))
+	d.Value = &K{K0, NONE, vslice}
+	for ci, _ := range tbl.Columns {
+		kd := tbl.Data[ci].Index(i)
+		dtype := tbl.Data[ci].Type
+		if dtype == K0 {
+			dtype = kd.(*K).Type
+		} else if dtype > K0 && dtype <= KT {
+			dtype = -dtype
+		}
+		vslice[ci] = &K{dtype, NONE, kd}
+	}
+	return d
+}
+
 func (tbl Table) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("+")
@@ -227,10 +265,58 @@ type Dict struct {
 }
 
 func (d Dict) String() string {
-	return fmt.Sprintf("%v!%v", d.Key, d.Value)
+	return fmt.Sprintf("%v!%v", d.Key.Data, d.Value.Data)
+}
+
+func titleInitial(str string) string {
+	for i, v := range str {
+		return string(unicode.ToTitle(v)) + str[i+1:]
+	}
+	return ""
+}
+
+func UnmarshalDict(t Dict, v interface{}) error {
+	var keys = t.Key.Data.([]string)
+	var vals = t.Value.Data.([]*K)
+	vv := reflect.ValueOf(v)
+	if vv.Kind() != reflect.Ptr || vv.IsNil() {
+		return errors.New("Invalid target type. Should be non null pointer")
+	}
+	vv = reflect.Indirect(vv)
+	for i, _ := range keys {
+		val := vals[i].Data
+		fv := vv.FieldByName(titleInitial(keys[i]))
+		if !fv.IsValid() {
+			continue
+		}
+		if fv.CanSet() && reflect.TypeOf(val).AssignableTo(fv.Type()) {
+			fv.Set(reflect.ValueOf(val))
+		}
+	}
+	return nil
+}
+
+func UnmarshalTable(t Table, v interface{}) (interface{}, error) {
+	vv := reflect.ValueOf(v)
+	if vv.Kind() != reflect.Ptr || vv.IsNil() {
+		return nil, errors.New("Invalid target type. Shoult be non null pointer")
+	}
+	vv = reflect.Indirect(vv)
+	fmt.Println("unmarshalling table with records:", t.Data[0].Len())
+	for i := 0; i < int(t.Data[0].Len()); i++ {
+		emptyelem := reflect.New(vv.Type().Elem())
+		err := UnmarshalDict(t.Index(i), emptyelem.Interface())
+		if err != nil {
+			fmt.Println("Failed to unmrshall dict", err)
+			return nil, err
+		}
+		vv = reflect.Append(vv, reflect.Indirect(emptyelem))
+	}
+	return vv.Interface(), nil
 }
 
 // Struct that represents q function
+
 type Function struct {
 	Namespace string
 	Body      string

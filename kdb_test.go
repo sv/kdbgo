@@ -52,7 +52,7 @@ func TestAsyncCall(t *testing.T) {
 	// check result
 	res, err := con.Call("asynctest")
 	fmt.Println("Result:", res, err)
-	if !res.(*K).Data.(bool) {
+	if !res.Data.(bool) {
 		t.Error("Unexpected result:", res)
 	}
 }

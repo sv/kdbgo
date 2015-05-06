@@ -370,7 +370,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		if err != nil {
 			return nil, err
 		}
-		res = Dict{&K{K0, NONE, dk}, &K{K0, NONE, dv}}
+		res = Dict{dk, dv}
 		return &K{msgtype, NONE, res}, nil
 	case XT:
 		var vecattr Attr
@@ -384,8 +384,8 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			return nil, err
 		}
 		dict := d.Data.(Dict)
-		colNames := dict.Key.Data.(*K).Data.([]string)
-		colValues := dict.Value.Data.(*K).Data.([]*K)
+		colNames := dict.Key.Data.([]string)
+		colValues := dict.Value.Data.([]*K)
 		//fmt.Println(colValues)
 		return &K{msgtype, vecattr, Table{colNames, colValues}}, nil
 

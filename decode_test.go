@@ -169,8 +169,8 @@ func TestDictWithAtoms(t *testing.T) {
 	r := bufio.NewReader(bytes.NewReader(b))
 	dict, _, err := Decode(r)
 	d := dict.Data.(Dict)
-	dk := d.Key.Data.(*K).Data.([]string)
-	dv := d.Value.Data.(*K).Data.([]int32)
+	dk := d.Key.Data.([]string)
+	dv := d.Value.Data.([]int32)
 	if err != nil {
 		t.Error("Failed decode - ", err)
 	}
@@ -211,8 +211,8 @@ func TestDictWithVectors(t *testing.T) {
 	r := bufio.NewReader(bytes.NewReader(b))
 	dict, _, err := Decode(r)
 	d := dict.Data.(Dict)
-	dk := d.Key.Data.(*K).Data.([]string)
-	dv := d.Value.Data.(*K).Data.([]*K)
+	dk := d.Key.Data.([]string)
+	dv := d.Value.Data.([]*K)
 	if err != nil {
 		t.Error("Failed decode - ", err)
 	}
@@ -371,6 +371,9 @@ func TestGeneralList(t *testing.T) {
 	}
 
 }
+
+//q)-8!("ac";`b;`)
+var GenericList2Bytes = []byte{0x01, 0x00, 0x00, 0x00, 0x1b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x02, 0x00, 0x00, 0x00, 0x61, 0x63, 0xf5, 0x62, 0x00, 0xf5, 0x00}
 
 //q)-8!1986.07.23D03:10:45.000639000 2013.06.10D20:49:14.999361000
 func TestTimestampVec(t *testing.T) {

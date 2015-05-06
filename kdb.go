@@ -63,12 +63,13 @@ func HandleClientConnection(conn net.Conn) {
 }
 
 // Make synchronous call to server similar to h(func;arg1;arg2;...)
-func (c *KDBConn) Call(cmd string, args ...*K) (data interface{}, err error) {
+func (c *KDBConn) Call(cmd string, args ...*K) (data *K, err error) {
 	var sending *K
+	var cmdK = &K{KC, NONE, cmd}
 	if len(args) == 0 {
-		sending = &K{KC, NONE, cmd}
+		sending = cmdK
 	} else {
-		sending = &K{K0, NONE, append([]*K{&K{KC, NONE, cmd}}, args...)}
+		sending = &K{K0, NONE, append([]*K{cmdK}, args...)}
 	}
 	err = Encode(c.con, SYNC, sending)
 	if err != nil {
@@ -81,10 +82,11 @@ func (c *KDBConn) Call(cmd string, args ...*K) (data interface{}, err error) {
 // Make asynchronous request to server
 func (c *KDBConn) AsyncCall(cmd string, args ...*K) (err error) {
 	var sending *K
+	var cmdK = &K{KC, NONE, cmd}
 	if len(args) == 0 {
-		sending = &K{KC, NONE, cmd}
+		sending = cmdK
 	} else {
-		sending = &K{K0, NONE, append([]*K{&K{KC, NONE, cmd}}, args...)}
+		sending = &K{K0, NONE, append([]*K{cmdK}, args...)}
 	}
 	return Encode(c.con, ASYNC, sending)
 }
@@ -94,7 +96,7 @@ func (c *KDBConn) Response(data *K) (err error) {
 	return Encode(c.con, RESPONSE, data)
 }
 
-func (c *KDBConn) ReadMessage() (data interface{}, msgtype int, e error) {
+func (c *KDBConn) ReadMessage() (data *K, msgtype int, e error) {
 	return Decode(c.rbuf)
 }
 
