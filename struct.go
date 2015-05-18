@@ -88,16 +88,15 @@ const (
 	nj = 0x8000000000000000
 )
 
-//var Nh int16 = *(*int16)(unsafe.Pointer(&nh))
+const Nh int16 = math.MinInt16
 
 const Wh int16 = math.MaxInt16
 
-//const Ni int32 = 1 << 31
-//var Ni = *(*int32)(unsafe.Pointer(&ni))
+const Ni int32 = math.MinInt32
 
 const Wi int32 = math.MaxInt32
 
-//var Nj int64 = *(*int64)(unsafe.Pointer(&nj))
+const Nj int64 = math.MinInt64
 
 const Wj int64 = math.MaxInt64
 
@@ -302,7 +301,6 @@ func UnmarshalTable(t Table, v interface{}) (interface{}, error) {
 		return nil, errors.New("Invalid target type. Shoult be non null pointer")
 	}
 	vv = reflect.Indirect(vv)
-	fmt.Println("unmarshalling table with records:", t.Data[0].Len())
 	for i := 0; i < int(t.Data[0].Len()); i++ {
 		emptyelem := reflect.New(vv.Type().Elem())
 		err := UnmarshalDict(t.Index(i), emptyelem.Interface())

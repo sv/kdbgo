@@ -218,7 +218,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 	case -KP:
 		var ts time.Duration
 		binary.Read(r, order, &ts)
-		return &K{msgtype, NONE, ts}, nil
+		return &K{msgtype, NONE, qEpoch.Add(ts)}, nil
 	case -KM:
 		var m Month
 		binary.Read(r, order, &m)
