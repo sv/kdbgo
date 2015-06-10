@@ -295,6 +295,33 @@ func UnmarshalDict(t Dict, v interface{}) error {
 	return nil
 }
 
+func UnmarshalDictToMap(t Dict, v interface{}) error {
+	vv := reflect.ValueOf(v)
+	if vv.Kind() == reflect.Map {
+		// check if keys are
+		t := vv.Type()
+		if t.Key().Kind() != reflect.String {
+			return errors.New("target type should be map[string]T")
+		}
+
+		if vv.IsNil() {
+			vv.Set(reflect.MakeMap(t))
+		}
+	} else {
+		return errors.New("target type should be map[string]T")
+	}
+	var keys = t.Key.Data.([]string)
+	var vals = t.Value.Data.([]*K)
+
+	for i, _ := range keys {
+		val := reflect.ValueOf(vals[i].Data)
+		kv := reflect.ValueOf(titleInitial(keys[i]))
+		vv.SetMapIndex(kv, val)
+	}
+
+	return nil
+}
+
 func UnmarshalTable(t Table, v interface{}) (interface{}, error) {
 	vv := reflect.ValueOf(v)
 	if vv.Kind() != reflect.Ptr || vv.IsNil() {
