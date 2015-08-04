@@ -128,7 +128,12 @@ func (o *K) Index(i int) interface{} {
 		return nil
 	}
 	if o.Len() == 0 {
-		return nil
+		// need to return null of that type
+		if o.Type == K0 {
+			return &K{K0, NONE, make([]*K, 0)}
+		} else {
+			return nil
+		}
 	}
 	if o.Type >= K0 && o.Type <= KT {
 		return reflect.ValueOf(o.Data).Index(i).Interface()
@@ -299,13 +304,13 @@ func UnmarshalDictToMap(t Dict, v interface{}) error {
 	vv := reflect.ValueOf(v)
 	if vv.Kind() == reflect.Map {
 		// check if keys are
-		t := vv.Type()
-		if t.Key().Kind() != reflect.String {
+		kt := vv.Type()
+		if kt.Key().Kind() != reflect.String {
 			return errors.New("target type should be map[string]T")
 		}
 
 		if vv.IsNil() {
-			vv.Set(reflect.MakeMap(t))
+			vv.Set(reflect.MakeMap(kt))
 		}
 	} else {
 		return errors.New("target type should be map[string]T")
