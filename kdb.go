@@ -129,7 +129,7 @@ func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (
 	}
 	var reply = make([]byte, 2+len(auth))
 	n, err := c.Read(reply)
-	fmt.Println(reply)
+	glog.V(2).Infoln(reply)
 	if err != nil {
 		return nil, err
 	}
