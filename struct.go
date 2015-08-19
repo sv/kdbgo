@@ -315,6 +315,11 @@ func UnmarshalDictToMap(t Dict, v interface{}) error {
 	} else {
 		return errors.New("target type should be map[string]T")
 	}
+
+	if t.Key == nil || t.Value == nil {
+		return nil //nothing to decode
+	}
+
 	var keys = t.Key.Data.([]string)
 	var vals = t.Value.Data.([]*K)
 
