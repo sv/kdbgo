@@ -109,41 +109,41 @@ type K struct {
 	Data interface{}
 }
 
-func (o *K) Len() int32 {
-	if o.Type < K0 || o.Type >= KFUNC {
+func (k *K) Len() int32 {
+	if k.Type < K0 || k.Type >= KFUNC {
 		return 1
-	} else if o.Type >= K0 && o.Type <= KT {
-		return int32(reflect.ValueOf(o.Data).Len())
-	} else if o.Type == XD {
-		return o.Data.(Dict).Key.Len()
-	} else if o.Type == XT {
-		return o.Data.(Table).Data[0].Len()
+	} else if k.Type >= K0 && k.Type <= KT {
+		return int32(reflect.ValueOf(k.Data).Len())
+	} else if k.Type == XD {
+		return k.Data.(Dict).Key.Len()
+	} else if k.Type == XT {
+		return k.Data.(Table).Data[0].Len()
 	} else {
 		return -1
 	}
 }
 
-func (o *K) Index(i int) interface{} {
-	if o.Type < K0 || o.Type > XT {
+func (k *K) Index(i int) interface{} {
+	if k.Type < K0 || k.Type > XT {
 		return nil
 	}
-	if o.Len() == 0 {
+	if k.Len() == 0 {
 		// need to return null of that type
-		if o.Type == K0 {
+		if k.Type == K0 {
 			return &K{K0, NONE, make([]*K, 0)}
-		} else {
-			return nil
 		}
+		return nil
+
 	}
-	if o.Type >= K0 && o.Type <= KT {
-		return reflect.ValueOf(o.Data).Index(i).Interface()
+	if k.Type >= K0 && k.Type <= KT {
+		return reflect.ValueOf(k.Data).Index(i).Interface()
 	}
 	// case for table
 	// need to return dict with header
-	if o.Type != XT {
+	if k.Type != XT {
 		return nil
 	}
-	var t = o.Data.(Table)
+	var t = k.Data.(Table)
 	return &K{XD, NONE, t.Index(i)}
 }
 
@@ -232,7 +232,7 @@ func (tbl *Table) Index(i int) Dict {
 	d.Key = &K{KS, NONE, tbl.Columns}
 	vslice := make([]*K, len(tbl.Columns))
 	d.Value = &K{K0, NONE, vslice}
-	for ci, _ := range tbl.Columns {
+	for ci := range tbl.Columns {
 		kd := tbl.Data[ci].Index(i)
 		dtype := tbl.Data[ci].Type
 		if dtype == K0 {
@@ -287,7 +287,7 @@ func UnmarshalDict(t Dict, v interface{}) error {
 		return errors.New("Invalid target type. Should be non null pointer")
 	}
 	vv = reflect.Indirect(vv)
-	for i, _ := range keys {
+	for i := range keys {
 		val := vals[i].Data
 		fv := vv.FieldByName(titleInitial(keys[i]))
 		if !fv.IsValid() {
@@ -323,7 +323,7 @@ func UnmarshalDictToMap(t Dict, v interface{}) error {
 	var keys = t.Key.Data.([]string)
 	var vals = t.Value.Data.([]*K)
 
-	for i, _ := range keys {
+	for i := range keys {
 		val := reflect.ValueOf(vals[i].Data)
 		kv := reflect.ValueOf(titleInitial(keys[i]))
 		vv.SetMapIndex(kv, val)
