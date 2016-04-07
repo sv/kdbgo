@@ -82,25 +82,28 @@ type ipcHeader struct {
 	MsgSize     int32
 }
 
-const (
-	nh = 0xFFFF8000
-	ni = 0x80000000
-	nj = 0x8000000000000000
-)
-
+// short nil
 const Nh int16 = math.MinInt16
 
+// short infinity
 const Wh int16 = math.MaxInt16
 
+// int nil
 const Ni int32 = math.MinInt32
 
+// int infinity
 const Wi int32 = math.MaxInt32
 
+// long nil
 const Nj int64 = math.MinInt64
 
+// long infinity
 const Wj int64 = math.MaxInt64
 
+// double nil
 var Nf float64 = math.NaN()
+
+// double infinity +ve
 var Wf float64 = math.Inf(1)
 
 type K struct {
@@ -187,6 +190,7 @@ var ErrBadHeader = errors.New("Bad header")
 // Cannot process sync requests
 var ErrSyncRequest = errors.New("nosyncrequest")
 
+// offset between Q time
 var qEpoch = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 // kdb month
@@ -205,7 +209,7 @@ func (m Minute) String() string {
 
 }
 
-// kdb second
+// kdb second hh:mm:ss
 type Second time.Time
 
 func (s Second) String() string {
@@ -213,7 +217,7 @@ func (s Second) String() string {
 	return fmt.Sprintf("%02v:%02v:%02v", time.Hour(), time.Minute(), time.Second())
 }
 
-// kdb time
+// kdb time hh:mm:ss.SSS
 type Time time.Time
 
 func (t Time) String() string {
@@ -262,7 +266,8 @@ func (tbl Table) String() string {
 
 }
 
-// Dictionary: ordered key->value mapping
+// Dictionary: ordered key->value mapping. 
+// Key and Value should be slices of the same length
 type Dict struct {
 	Key   *K
 	Value *K
@@ -272,6 +277,7 @@ func (d Dict) String() string {
 	return fmt.Sprintf("%v!%v", d.Key.Data, d.Value.Data)
 }
 
+// utility function to titlecase first letter of the string
 func titleInitial(str string) string {
 	for i, v := range str {
 		return string(unicode.ToTitle(v)) + str[i+1:]
@@ -279,6 +285,7 @@ func titleInitial(str string) string {
 	return ""
 }
 
+// unmarshall dict to struct
 func UnmarshalDict(t Dict, v interface{}) error {
 	var keys = t.Key.Data.([]string)
 	var vals = t.Value.Data.([]*K)
@@ -300,6 +307,7 @@ func UnmarshalDict(t Dict, v interface{}) error {
 	return nil
 }
 
+// Unmarshall Q dictionary to map[string]{}interface
 func UnmarshalDictToMap(t Dict, v interface{}) error {
 	vv := reflect.ValueOf(v)
 	if vv.Kind() == reflect.Map {
@@ -351,7 +359,6 @@ func UnmarshalTable(t Table, v interface{}) (interface{}, error) {
 }
 
 // Struct that represents q function
-
 type Function struct {
 	Namespace string
 	Body      string

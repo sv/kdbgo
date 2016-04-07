@@ -17,6 +17,7 @@ import (
 // 3 - v3.0, compression, timestamp, timespan, uuid
 //
 
+// KDBConn establishes connection and communicates using Q IPC protocol
 type KDBConn struct {
 	con     *net.TCPConn
 	rbuf    *bufio.Reader
@@ -27,7 +28,10 @@ type KDBConn struct {
 
 // Close connection to the server
 func (c *KDBConn) Close() error {
-	return c.con.Close()
+	if c.con != nil {
+		return c.con.Close()
+	}
+	return nil // not connected error?
 }
 
 // process clients requests
@@ -96,10 +100,12 @@ func (c *KDBConn) Response(data *K) (err error) {
 	return Encode(c.con, RESPONSE, data)
 }
 
+// Read complete message from connection
 func (c *KDBConn) ReadMessage() (data *K, msgtype int, e error) {
 	return Decode(c.rbuf)
 }
 
+// Write data in Q IPC format
 func (c *KDBConn) WriteMessage(msgtype int, data *K) (err error) {
 	return Encode(c.con, msgtype, data)
 }

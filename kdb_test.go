@@ -13,7 +13,7 @@ var testPort = 1234
 func TestConn(t *testing.T) {
 	con, err := DialKDB(testHost, testPort, "")
 	if err != nil {
-		t.Error("Failed to connect.", err)
+		t.Fatalf("Failed to connect to test instance: %s", err)
 	}
 	err = con.Close()
 	if err != nil {
@@ -25,7 +25,7 @@ func TestConnTimeout(t *testing.T) {
 	timeout := time.Second
 	con, err := DialKDBTimeout(testHost, testPort, "", timeout)
 	if err != nil {
-		t.Error("Failed to connect with timeout.", timeout, err)
+		t.Fatalf("Failed to connect with timeout(%s). Error: %s", timeout, err)
 	}
 	err = con.Close()
 	if err != nil {
@@ -34,7 +34,10 @@ func TestConnTimeout(t *testing.T) {
 }
 
 func TestSyncCall(t *testing.T) {
-	con, _ := DialKDB(testHost, testPort, "")
+	con, err := DialKDB(testHost, testPort, "")
+	if err != nil {
+		t.Fatalf("Failed to connect to test instance: %s", err)
+	}
 	fmt.Println("Testing sync function call")
 	_, _ = con.Call("show `testreq;(.q;.Q;.h;.o);1000000#0i")
 	/*fmt.Println("Result:", res, err)
@@ -44,8 +47,11 @@ func TestSyncCall(t *testing.T) {
 }
 
 func TestAsyncCall(t *testing.T) {
-	con, _ := DialKDB(testHost, testPort, "")
-	err := con.AsyncCall("show `asynctest;asynctest:1b")
+	con, err := DialKDB(testHost, testPort, "")
+	if err != nil {
+		t.Fatalf("Failed to connect to test instance: %s", err)
+	}
+	err = con.AsyncCall("show `asynctest;asynctest:1b")
 	if err != nil {
 		t.Error("Async call failed", err)
 	}
@@ -76,15 +82,22 @@ func TestAsyncCall2(t *testing.T) {
 */
 
 func TestResponse(t *testing.T) {
-	con, _ := DialKDB(testHost, testPort, "")
-	err := con.Response(&K{KC, NONE, "show `response;1 2 3"})
+	con, err := DialKDB(testHost, testPort, "")
+	if err != nil {
+		t.Fatalf("Failed to connect to test instance: %s", err)
+	}
+	err = con.Response(&K{KC, NONE, "show `response;1 2 3"})
 	if err != nil {
 		t.Error("Sending response failed", err)
 	}
 }
 
 func BenchmarkTradeRead(b *testing.B) {
-	con, _ := DialKDB("localhost", 1234, "")
+	con, err := DialKDB("localhost", 1234, "")
+	if err != nil {
+		b.Fatalf("Failed to connect to test instance: %s", err)
+	}
+	con.Call("testdata:([]time:10?.z.p;sym:10?`8;price:100+10?1f;size:10?10)")
 	//fmt.Println("KDB connection", con, err)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
