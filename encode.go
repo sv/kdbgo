@@ -6,12 +6,9 @@ import (
 	"errors"
 	"io"
 	"reflect"
-
-	"github.com/golang/glog"
 )
 
 func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
-	glog.V(1).Infoln(reflect.TypeOf(data))
 	switch data.Type {
 	case K0:
 		tosend := data.Data.([]*K)
@@ -88,6 +85,78 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	}
 	return nil
 
+}
+
+func min32(a, b int32) int32 {
+	if a > b {
+		return b
+	}
+	return a
+}
+
+func compress(b []byte) (dst []byte) {
+	i := byte(0)
+	var g bool
+	//j := int32(len(b))
+	f, h0, h := int32(0), 0, 0
+	dst = make([]byte, len(b)/2)
+	c := 12
+	d := c
+	e := len(dst)
+	p := int32(0)
+	q, r, s0 := int32(0), int32(0), int32(0)
+	s := int32(8)
+	t := int32(len(b))
+	a := make([]int32, 256)
+	copy(dst[:4], b[:4])
+	dst[2] = 1
+	//dst[8:]=[]byte(strconv.Itoa(int(j)))
+	for ; s < t; i *= 2 {
+		if 0 == i {
+			if d > e-17 {
+				dst = b
+				return
+			}
+			i = 1
+			dst[c] = byte(f)
+			c = d
+			d++
+			f = 0
+		}
+
+		h = int(0xFF & (b[s] ^ b[s+1]))
+		p = a[h]
+		g = (s > t-3) || (0 == p) || (0 != (b[s] ^ b[p]))
+
+		if 0 < s0 {
+			a[h0] = s0
+			s0 = 0
+		}
+		if g {
+			h0 = h
+			s0 = s
+			dst[d] = b[s]
+			d++
+			s++
+		} else {
+			a[h] = s
+			f |= int32(i)
+			p += 2
+			s += 2
+			r = s
+			q = min32(s+255, t)
+			for ; b[p] == b[s] && s < q; s++ {
+				p++
+			}
+			dst[d] = byte(h)
+			d++
+			dst[d] = byte(s - r)
+			d++
+		}
+	}
+	dst[c] = byte(f)
+	//dst[4:8]=d
+	return dst
 }
 
 // Encode data to ipc format as msgtype(sync/async/response) to specified writer

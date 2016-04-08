@@ -266,7 +266,7 @@ func (tbl Table) String() string {
 
 }
 
-// Dictionary: ordered key->value mapping. 
+// Dictionary: ordered key->value mapping.
 // Key and Value should be slices of the same length
 type Dict struct {
 	Key   *K

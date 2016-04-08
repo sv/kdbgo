@@ -78,7 +78,6 @@ func uncompress(b []byte) (dst []byte) {
 	var usize int32
 	binary.Read(bytes.NewReader(b[0:4]), binary.LittleEndian, &usize)
 	dst = make([]byte, usize)
-	glog.V(1).Infoln("Uncompressed size=", usize)
 	d := int32(4)
 	aa := make([]int32, 256)
 	for int(s) < len(dst) {
@@ -130,32 +129,23 @@ func Decode(src *bufio.Reader) (data *K, msgtype int, e error) {
 		glog.Errorln("Failed to read message header:", e)
 		return nil, -1, e
 	}
-	glog.V(1).Infoln("Header -> ", header)
 	// try to buffer entire message in one go
 	src.Peek(int(header.MsgSize - 8))
 
 	var order = header.getByteOrder()
 	if header.Compressed == 0x01 {
-		glog.V(1).Infoln("Decoding compressed data. Size = ", header.MsgSize)
 		compressed := make([]byte, header.MsgSize-8)
-		glog.V(1).Infoln("Filling buffer", len(compressed))
 		_, e = io.ReadFull(src, compressed)
 		if e != nil {
 			glog.Errorln("Decode:readcompressed error - ", e)
 			return nil, int(header.RequestType), e
 		}
-		glog.V(1).Infoln("Uncompressing...")
 		var uncompressed = uncompress(compressed)
-		glog.V(1).Infoln("Done.")
-		glog.V(2).Infoln(uncompressed[8:1000])
 		var buf = bufio.NewReader(bytes.NewReader(uncompressed[8:]))
-		glog.V(1).Infoln("Decoding data")
 		data, e = readData(buf, order)
 		return data, int(header.RequestType), e
 	}
 	data, e = readData(src, order)
-	glog.V(1).Infoln("Object decoded", e)
-	glog.V(1).Infoln("buffered = ", src.Buffered())
 	return data, int(header.RequestType), e
 }
 
@@ -386,7 +376,6 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		dict := d.Data.(Dict)
 		colNames := dict.Key.Data.([]string)
 		colValues := dict.Value.Data.([]*K)
-		//fmt.Println(colValues)
 		return &K{msgtype, vecattr, Table{colNames, colValues}}, nil
 
 	case KFUNC:
