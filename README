@@ -1,5 +1,5 @@
-Q driver in Go
-==============
+# Q driver in Go #
+
 
 This is an implementation of kdb+ driver native in Go. It implements Q IPC protocol.
 
