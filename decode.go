@@ -350,7 +350,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			arr[i] = string(line[:len(line)-1])
 		}
 		return &K{msgtype, vecattr, arr}, nil
-	case XD, 127:
+	case XD, SD:
 		var res Dict
 		dk, err := readData(r, order)
 		if err != nil {
@@ -399,8 +399,6 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		}
 		return &K{msgtype, NONE, primitiveidx}, nil
 	case KPROJ, KCOMP:
-		// 104 - projection
-		// 105 - composition
 		var n int32
 		err = binary.Read(r, order, &n)
 		var res = make([]interface{}, n)
@@ -412,12 +410,6 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		}
 		return &K{msgtype, NONE, res}, nil
 	case KEACH, KOVER, KSCAN, KPRIOR, KEACHRIGHT, KEACHLEFT:
-		// 106 - f'
-		// 107 - f/
-		// 108 - f\
-		// 109 - f':
-		// 110 - f/:
-		// 111 - f\:
 		return readData(r, order)
 	case KDYNLOAD:
 		// 112 - dynamic load
