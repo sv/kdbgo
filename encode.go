@@ -167,7 +167,7 @@ func Encode(w io.Writer, msgtype int, data *K) (err error) {
 	if err != nil {
 		return err
 	}
-	msglen := int32(8 + dbuf.Len())
+	msglen := uint32(8 + dbuf.Len())
 	var header = ipcHeader{1, byte(msgtype), 0, 0, msglen}
 	buf := new(bytes.Buffer)
 	err = binary.Write(buf, order, header)

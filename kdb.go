@@ -38,6 +38,8 @@ func (c *KDBConn) Close() error {
 func HandleClientConnection(conn net.Conn) {
 	glog.V(1).Infoln("client connected")
 	c := conn.(*net.TCPConn)
+	c.SetKeepAlive(true)
+	c.SetNoDelay(true)
 	var cred = make([]byte, 100)
 	n, err := c.Read(cred)
 	if err != nil {
@@ -143,5 +145,7 @@ func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (
 		return nil, errors.New("Authentication error. Max supported version - " + string(reply[0]))
 	}
 	kdbconn := KDBConn{c, bufio.NewReader(c), host, string(port), auth}
+	c.SetKeepAlive(true)
+	c.SetNoDelay(true)
 	return &kdbconn, nil
 }

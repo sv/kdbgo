@@ -54,6 +54,7 @@ const (
 	// table,dict
 	XT int8 = 98 //   x->k is XD
 	XD int8 = 99 //   kK(x)[0] is keys. kK(x)[1] is values.
+	SD int8 = 127 // sorted dict
 
 	// function types
 	KFUNC      int8 = 100
@@ -79,7 +80,7 @@ type ipcHeader struct {
 	RequestType byte
 	Compressed  byte
 	Reserved    byte
-	MsgSize     int32
+	MsgSize     uint32
 }
 
 // short nil
