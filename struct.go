@@ -52,8 +52,8 @@ const (
 	KT int8 = 19 // 4 time      int    kI (millisecond)
 
 	// table,dict
-	XT int8 = 98 //   x->k is XD
-	XD int8 = 99 //   kK(x)[0] is keys. kK(x)[1] is values.
+	XT int8 = 98  //   x->k is XD
+	XD int8 = 99  //   kK(x)[0] is keys. kK(x)[1] is values.
 	SD int8 = 127 // sorted dict
 
 	// function types
