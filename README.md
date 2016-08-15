@@ -1,5 +1,6 @@
 # Q driver in Go #
 
+[![Build Status](https://travis-ci.org/sv/kdbgo.svg?branch=master)](https://travis-ci.org/sv/kdbgo)
 
 This is an implementation of kdb+ driver native in Go. It implements Q IPC protocol.
 
