@@ -11,6 +11,9 @@ matrix:
   fast_finish: true
 
 before_install:
+  # deps
+  - go get github.com/golang/glog
+  - go get github.com/nu7hatch/gouuid
   # linting tools
   - go get github.com/golang/lint/golint
   # - go get github.com/fzipp/gocyclo
