@@ -25,13 +25,13 @@ var encodingTests = []struct {
 	{"(\"ac\";`b;`)", &K{K0, NONE, []*K{{KC, NONE, "ac"}, {-KS, NONE, "b"}, {-KS, NONE, ""}}}, GenericList2Bytes},
 	{"`byte$enlist til 5", &K{K0, NONE, []*K{{KG, NONE, []byte{0, 1, 2, 3, 4}}}}, GeneralListBytes},
 	{"([]a:enlist 2;b:enlist 3)", &K{XT, NONE, Table{
-		[]string{"a", "b"}, 
-		[]*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}}
-		}}, TableBytes},
+		[]string{"a", "b"},
+		[]*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}}}},
+		TableBytes},
 	{"`a`b!enlist each 2 3", &K{XD, NONE, Dict{
-		&K{KS, NONE, []string{"a", "b"}}, 
-		&K{K0, NONE, []*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}}}
-		}}, DictWithVectorsBytes},
+		&K{KS, NONE, []string{"a", "b"}},
+		&K{K0, NONE, []*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}}}}},
+		DictWithVectorsBytes},
 	{"1#2013.06.10T22:03:49.713", &K{KZ, NONE, []float64{4909.919}}, DateTimeVecBytes},
 	{"1#2013.06.10", &K{KD, NONE, []int32{4909}}, DateVecBytes},
 	{"1#21:53:37.963", &K{KT, NONE, []int32{78817963}}, TimeVecBytes},
