@@ -177,7 +177,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		binary.Read(r, order, &sh)
 		return &K{msgtype, NONE, sh}, nil
 
-	case -KI:
+	case -KI, -KD, -KU, -KV:
 		var i int32
 		binary.Read(r, order, &i)
 		return &K{msgtype, NONE, i}, nil
@@ -189,7 +189,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var e float32
 		binary.Read(r, order, &e)
 		return &K{msgtype, NONE, e}, nil
-	case -KF:
+	case -KF, -KZ:
 		var f float64
 		binary.Read(r, order, &f)
 		return &K{msgtype, NONE, f}, nil
@@ -217,8 +217,6 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var span time.Duration
 		binary.Read(r, order, &span)
 		return &K{msgtype, NONE, span}, nil
-	case -KD, -KU, -KV, -KZ:
-		return nil, errors.New("NotImplemetedYet")
 	case KB, UU, KG, KH, KI, KJ, KE, KF, KC, KP, KM, KD, KN, KU, KV, KT, KZ:
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
