@@ -3,193 +3,54 @@ package kdb
 import (
 	"bytes"
 	"errors"
-	"fmt"
+	//"fmt"
 	"testing"
 )
 
-func TestEBool(t *testing.T) {
-	fmt.Println("Encoding true")
-	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, &K{-KB, NONE, false})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), BoolBytes) {
-		t.Error("Encoding  is incorrect")
-	}
-
-}
-func TestEInt(t *testing.T) {
-	fmt.Println("Encoding 1i")
-	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, &K{-KI, NONE, int32(1)})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), IntBytes) {
-		t.Error("Encoding is incorrect")
-	}
-
-}
-func TestEIntList(t *testing.T) {
-	fmt.Println("Encoding enlist 1i")
-	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, &K{KI, NONE, []int32{1}})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), IntVectorBytes) {
-		t.Error("Encoding is incorrect")
-	}
-
+var encodingTests = []struct {
+	desc     string // description
+	input    *K     // input
+	expected []byte // expected result
+}{
+	{"true", &K{-KB, NONE, false}, BoolBytes},
+	{"1i", &K{-KI, NONE, int32(1)}, IntBytes},
+	{"enlist 1i", &K{KI, NONE, []int32{1}}, IntVectorBytes},
+	{"`byte$til 5", &K{KG, NONE, []byte{0, 1, 2, 3, 4}}, ByteVectorBytes},
+	{"\"GOOG\"", &K{KC, NONE, "GOOG"}, CharArrayBytes},
+	{"`abc`bc`c", &K{KS, NONE, []string{"abc", "bc", "c"}}, SymbolVectorBytes},
+	{"`a`b!2 3", &K{XD, NONE, Dict{&K{KS, NONE, []string{"a", "b"}}, &K{KI, NONE, []int32{2, 3}}}}, DictWithAtomsBytes},
+	{"{x+y} in .d", &K{KFUNC, NONE, Function{Namespace: "d", Body: "{x+y}"}}, FuncNonRootBytes},
+	{"{x+y}", &K{KFUNC, NONE, Function{Namespace: "", Body: "{x+y}"}}, FuncBytes},
+	{"'type", &K{KERR, NONE, errors.New("type")}, ErrorBytes},
+	{"(\"ac\";`b;`)", &K{K0, NONE, []*K{{KC, NONE, "ac"}, {-KS, NONE, "b"}, {-KS, NONE, ""}}}, GenericList2Bytes},
+	{"`byte$enlist til 5", &K{K0, NONE, []*K{{KG, NONE, []byte{0, 1, 2, 3, 4}}}}, GeneralListBytes},
+	{"([]a:enlist 2;b:enlist 3)", &K{XT, NONE, Table{
+		[]string{"a", "b"}, 
+		[]*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}}
+		}}, TableBytes},
+	{"`a`b!enlist each 2 3", &K{XD, NONE, Dict{
+		&K{KS, NONE, []string{"a", "b"}}, 
+		&K{K0, NONE, []*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}}}
+		}}, DictWithVectorsBytes},
+	{"1#2013.06.10T22:03:49.713", &K{KZ, NONE, []float64{4909.919}}, DateTimeVecBytes},
+	{"1#2013.06.10", &K{KD, NONE, []int32{4909}}, DateVecBytes},
+	{"1#21:53:37.963", &K{KT, NONE, []int32{78817963}}, TimeVecBytes},
+	{"21:22:01 + 1 2", &K{KV, NONE, []int32{76922, 76923}}, SecondVecBytes},
+	{"21:22*til 2", &K{KU, NONE, []int32{0, 1282}}, MinuteVecBytes},
+	{"2013.06m +til 3", &K{KM, NONE, []int32{161, 162, 163}}, MonthVecBytes},
 }
 
-func TestEByteVector(t *testing.T) {
-	fmt.Println("Encoding `byte$til 5")
-	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, &K{KG, NONE, []byte{0, 1, 2, 3, 4}})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), ByteVectorBytes) {
-		t.Error("Encoding is incorrect")
-	}
-
-}
-
-func TestECharArray(t *testing.T) {
-	fmt.Println("Encoding \"GOOG\"")
-	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, &K{KC, NONE, "GOOG"})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), CharArrayBytes) {
-		t.Error("Encoding is incorrect")
-	}
-
-}
-
-func TestESymbolArray(t *testing.T) {
-	fmt.Println("Encoding `abc`bc`c")
-	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, &K{KS, NONE, []string{"abc", "bc", "c"}})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	shouldbe := SymbolVectorBytes
-	if !bytes.Equal(buf.Bytes(), shouldbe) {
-		t.Error("Encoding is incorrect")
-	}
-
-}
-
-func TestEDictWithAtoms(t *testing.T) {
-	fmt.Println("Encoding `a`b!2 3")
-	buf := new(bytes.Buffer)
-	dict := Dict{&K{KS, NONE, []string{"a", "b"}}, &K{KI, NONE, []int32{2, 3}}}
-	err := Encode(buf, ASYNC, &K{XD, NONE, dict})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), DictWithAtomsBytes) {
-		t.Error("Encoding is incorrect")
-	}
-
-}
-
-func TestEDictWithVectors(t *testing.T) {
-	fmt.Println("Encoding `a`b!enlist each 2 3")
-	buf := new(bytes.Buffer)
-	dict := Dict{&K{KS, NONE, []string{"a", "b"}}, &K{K0, NONE, []*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}}}}
-	err := Encode(buf, ASYNC, &K{XD, NONE, dict})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), DictWithVectorsBytes) {
-		t.Error("Encoding is incorrect")
-	}
-
-}
-
-func TestETable(t *testing.T) {
-	fmt.Println("Encoding ([]a:enlist 2;b:enlist 3)")
-	buf := new(bytes.Buffer)
-	dict := Table{[]string{"a", "b"}, []*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}}}
-	err := Encode(buf, ASYNC, &K{XT, NONE, dict})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), TableBytes) {
-		t.Error("Encoding is incorrect")
-	}
-
-}
-func TestEGeneralList(t *testing.T) {
-	fmt.Println("Encoding `byte$enlist til 5")
-	buf := new(bytes.Buffer)
-	var list = []*K{{KG, NONE, []byte{0, 1, 2, 3, 4}}}
-	err := Encode(buf, ASYNC, &K{K0, NONE, list})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), GeneralListBytes) {
-		t.Error("Encoding is incorrect")
-	}
-
-}
-
-func TestEGenericList2(t *testing.T) {
-	fmt.Println("Encoding (\"ac\";`b;`)")
-	buf := new(bytes.Buffer)
-	var list = []*K{{KC, NONE, "ac"}, {-KS, NONE, "b"}, {-KS, NONE, ""}}
-	err := Encode(buf, ASYNC, &K{K0, NONE, list})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), GenericList2Bytes) {
-		t.Error("Encoding is incorrect")
-	}
-}
-
-func TestEError(t *testing.T) {
-	fmt.Println("Encoding 'type error")
-	buf := new(bytes.Buffer)
-	e := errors.New("type")
-	err := Encode(buf, ASYNC, &K{KERR, NONE, e})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), ErrorBytes) {
-		t.Error("Encoding is incorrect")
-	}
-
-}
-
-func TestEFunction(t *testing.T) {
-	fmt.Println("Encoding function in root namespace")
-	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, &K{KFUNC, NONE, Function{Namespace: "", Body: "{x+y}"}})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), FuncBytes) {
-		fmt.Println(buf.Bytes())
-		fmt.Println(FuncBytes)
-		t.Error("Encoding is incorrect")
-	}
-}
-
-func TestEFunctionNonRoot(t *testing.T) {
-	fmt.Println("Encoding function in non-root namespace")
-	buf := new(bytes.Buffer)
-	err := Encode(buf, ASYNC, &K{KFUNC, NONE, Function{Namespace: "d", Body: "{x+y}"}})
-	if err != nil {
-		t.Error("Encoding failed", err)
-	}
-	if !bytes.Equal(buf.Bytes(), FuncNonRootBytes) {
-		fmt.Println(buf.Bytes())
-		fmt.Println(FuncNonRootBytes)
-		t.Error("Encoding is incorrect")
+func TestEncoding(t *testing.T) {
+	for _, tt := range encodingTests {
+		// fmt.Println(tt.desc)
+		buf := new(bytes.Buffer)
+		err := Encode(buf, ASYNC, tt.input)
+		if err != nil {
+			t.Errorf("Encoding '%s' failed:%s", tt.desc, err)
+			continue
+		}
+		if !bytes.Equal(buf.Bytes(), tt.expected) {
+			t.Errorf("Encoded '%s' incorrectly.", tt.desc)
+		}
 	}
 }

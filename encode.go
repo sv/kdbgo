@@ -16,7 +16,10 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		binary.Write(dbuf, order, NONE) // attributes
 		binary.Write(dbuf, order, int32(len(tosend)))
 		for i := 0; i < len(tosend); i++ {
-			writeData(dbuf, order, tosend[i])
+			err = writeData(dbuf, order, tosend[i])
+			if err != nil {
+				return err
+			}
 		}
 	case -KS:
 		tosend := data.Data.(string)
@@ -53,7 +56,7 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	case -KI, -KJ, -KE, -KF:
 		binary.Write(dbuf, order, int8(data.Type))
 		binary.Write(dbuf, order, data.Data)
-	case KG, KI, KJ, KE, KF:
+	case KG, KI, KJ, KE, KF, KZ, KT, KD, KV, KU, KM:
 		binary.Write(dbuf, order, int8(data.Type))
 		binary.Write(dbuf, order, NONE) // attributes
 		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))

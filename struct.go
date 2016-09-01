@@ -113,11 +113,11 @@ type K struct {
 	Data interface{}
 }
 
-func (k *K) Len() int32 {
+func (k *K) Len() int {
 	if k.Type < K0 || k.Type >= KFUNC {
 		return 1
 	} else if k.Type >= K0 && k.Type <= KT {
-		return int32(reflect.ValueOf(k.Data).Len())
+		return reflect.ValueOf(k.Data).Len()
 	} else if k.Type == XD {
 		return k.Data.(Dict).Key.Len()
 	} else if k.Type == XT {
