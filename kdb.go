@@ -26,10 +26,14 @@ type KDBConn struct {
 
 // Close connection to the server
 func (c *KDBConn) Close() error {
-	if c.con != nil {
+	if c.ok() {
 		return c.con.Close()
 	}
-	return nil // not connected error?
+	return errors.New("Closed connection")
+}
+
+func (c *KDBConn) ok() bool {
+	return c.con != nil
 }
 
 // process clients requests
@@ -63,6 +67,9 @@ func HandleClientConnection(conn net.Conn) {
 
 // Make synchronous call to server similar to h(func;arg1;arg2;...)
 func (c *KDBConn) Call(cmd string, args ...*K) (data *K, err error) {
+	if !c.ok() {
+		return nil, errors.New("Closed connection")
+	}
 	var sending *K
 	var cmdK = &K{KC, NONE, cmd}
 	if len(args) == 0 {
@@ -80,6 +87,9 @@ func (c *KDBConn) Call(cmd string, args ...*K) (data *K, err error) {
 
 // Make asynchronous request to server
 func (c *KDBConn) AsyncCall(cmd string, args ...*K) (err error) {
+	if !c.ok() {
+		return errors.New("Closed connection")
+	}
 	var sending *K
 	var cmdK = &K{KC, NONE, cmd}
 	if len(args) == 0 {
@@ -126,18 +136,20 @@ func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (
 	buf.WriteByte(0)
 	_, err = c.Write(buf.Bytes())
 	if err != nil {
+		c.Close()
 		return nil, err
 	}
 	var reply = make([]byte, 2+len(auth))
 	n, err := c.Read(reply)
 	if err != nil {
+		c.Close()
 		return nil, err
 	}
 	if n != 1 {
+		c.Close()
 		return nil, errors.New("Authentication error. Max supported version - " + string(reply[0]))
 	}
+	_ = c.SetKeepAlive(true) // care if keepalive is failed to be set?
 	kdbconn := KDBConn{c, bufio.NewReader(c), host, string(port), auth}
-	c.SetKeepAlive(true)
-	c.SetNoDelay(true)
 	return &kdbconn, nil
 }
