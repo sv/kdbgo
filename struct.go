@@ -113,6 +113,45 @@ type K struct {
 	Data interface{}
 }
 
+func Int(x int32) *K {
+	return &K{-KI, NONE, x}
+}
+
+func Long(x int64) *K {
+	return &K{-KJ, NONE, x}
+}
+
+func Real(x float32) *K {
+	return &K{-KE, NONE, x}
+}
+
+func Float(x float64) *K {
+	return &K{-KF, NONE, x}
+}
+
+func Error(x error) *K {
+	return &K{KERR, NONE, x}
+}
+
+func Symbol(x string) *K {
+	return &K{-KS, NONE, x}
+}
+func SymbolV(x []string) *K {
+	return &K{KS, NONE, x}
+}
+
+func Atom(t int8, x interface{}) *K {
+	return &K{t, NONE, x}
+}
+
+func NewList(x ...*K) *K {
+	return &K{K0, NONE, x}
+}
+
+func NewFunc(ctx, body string) *K {
+	return &K{KFUNC, NONE, Function{Namespace: ctx, Body: body}}
+}
+
 func (k *K) Len() int {
 	if k.Type < K0 || k.Type >= KFUNC {
 		return 1
@@ -232,6 +271,10 @@ type Table struct {
 	Data    []*K
 }
 
+func NewTable(cols []string, data []*K) *K {
+	return &K{XT, NONE, Table{cols, data}}
+}
+
 func (tbl *Table) Index(i int) Dict {
 	var d = Dict{}
 	d.Key = &K{KS, NONE, tbl.Columns}
@@ -272,6 +315,10 @@ func (tbl Table) String() string {
 type Dict struct {
 	Key   *K
 	Value *K
+}
+
+func NewDict(k, v *K) *K {
+	return &K{XD, NONE, Dict{k, v}}
 }
 
 func (d Dict) String() string {
