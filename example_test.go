@@ -6,14 +6,14 @@ import (
 	"bitbucket.org/svidyuk/kdbgo"
 )
 
-func ExampleKDBConn_Call() {
+func ExampleKDBConnCall() {
 	con, err := kdb.DialKDB("localhost", 1234, "")
 	if err != nil {
 		fmt.Println("Failed to connect:", err)
 		return
 	}
 
-	res, err := con.Call("til", &kdb.K{-kdb.KI, kdb.NONE, int32(10)})
+	res, err := con.Call("til", kdb.Int(10))
 	if err != nil {
 		fmt.Println("Query failed:", err)
 	}

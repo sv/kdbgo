@@ -16,7 +16,10 @@ var BoolBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0xff, 0x0
 func TestBool(t *testing.T) {
 	b := BoolBytes
 	r := bufio.NewReader(bytes.NewReader(b))
-	d, _, _ := Decode(r)
+	d, _, err := Decode(r)
+	if err != nil {
+		t.Error(err)
+	}
 	if d.Data.(bool) {
 		t.Fail()
 	}
@@ -120,7 +123,7 @@ func TestTimespanVector(t *testing.T) {
 	d, _, _ := Decode(r)
 	if vec, ok := d.Data.([]time.Duration); ok {
 		if len(vec) != 2 || vec[0].String() != "1h22m33.444555666s" {
-			t.Fail()
+			t.Error("Got - ", d, ", expected - 0D01:22:33.444555666 0D02:45:06.889111332")
 		}
 	}
 
@@ -388,7 +391,7 @@ func TestTimestampVec(t *testing.T) {
 	}
 	if vec, ok := d.Data.([]time.Time); ok {
 		if len(vec) != 2 || vec[0] != time.Date(1986, time.July, 23, 03, 10, 45, 639000, time.UTC) || vec[1] != time.Date(2013, time.June, 10, 20, 49, 14, 999361000, time.UTC) {
-			t.Error("Decoding is incorrect. Result was ", vec)
+			t.Error("Decoding is incorrect. Result was ", vec, ", exepcted - 1986.07.23D03:10:45.000639000 2013.06.10D20:49:14.999361000")
 		}
 	} else {
 		t.Error("Result is not time array")

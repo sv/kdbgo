@@ -60,7 +60,7 @@ func HandleClientConnection(conn net.Conn) {
 			return
 		}
 		if msgtype == SYNC {
-			Encode(conn, RESPONSE, &K{KERR, NONE, ErrSyncRequest})
+			Encode(conn, RESPONSE, Error(ErrSyncRequest))
 		}
 		// don't respond
 		i++
