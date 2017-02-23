@@ -3,7 +3,7 @@ package kdb_test
 import (
 	"fmt"
 
-	"bitbucket.org/svidyuk/kdbgo"
+	"github.com/sv/kdbgo"
 )
 
 func ExampleKDBConnCall() {
