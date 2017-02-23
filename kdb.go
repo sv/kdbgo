@@ -8,8 +8,6 @@ import (
 	"io"
 	"net"
 	"time"
-
-	"github.com/golang/glog"
 )
 
 // 0 - v2.5, no compression, no timestamp, no timespan, no uuid
@@ -36,7 +34,6 @@ func (c *KDBConn) Close() error {
 
 // process clients requests
 func HandleClientConnection(conn net.Conn) {
-	glog.V(1).Infoln("client connected")
 	c := conn.(*net.TCPConn)
 	c.SetKeepAlive(true)
 	c.SetNoDelay(true)
@@ -46,17 +43,14 @@ func HandleClientConnection(conn net.Conn) {
 		conn.Close()
 		return
 	}
-	glog.V(1).Infoln("capabilities:", n, cred[:n])
 	c.Write(cred[n-2 : n-1])
 	rbuf := bufio.NewReaderSize(conn, 4*1024*1024)
-	glog.V(1).Infoln("authenticated")
 	i := 0
 	for {
 		_, msgtype, err := Decode(rbuf)
 
 		if err == io.EOF {
 			conn.Close()
-			glog.V(1).Infoln("Connection closed")
 			return
 		}
 		if msgtype == SYNC {
@@ -64,7 +58,6 @@ func HandleClientConnection(conn net.Conn) {
 		}
 		// don't respond
 		i++
-		glog.V(1).Infoln("msgnum#", i)
 	}
 }
 
@@ -137,7 +130,6 @@ func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (
 	}
 	var reply = make([]byte, 2+len(auth))
 	n, err := c.Read(reply)
-	glog.V(2).Infoln(reply)
 	if err != nil {
 		return nil, err
 	}
