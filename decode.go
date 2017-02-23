@@ -10,7 +10,6 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/golang/glog"
 	"github.com/nu7hatch/gouuid"
 )
 
@@ -19,20 +18,28 @@ var typeSize = map[int8]int{
 	2: 16,
 	5: 2,
 	6: 4, 8: 4, 14: 4, 17: 4, 18: 4, 19: 4,
-	7: 8, 9: 8, 15: 8}
+	7: 8, 9: 8, 12: 8, 15: 8, 16: 8}
 
 var typeReflect = map[int8]reflect.Type{
+	1:  reflect.TypeOf([]byte{}),
+	2:  reflect.TypeOf([]uuid.UUID{}),
+	4:  reflect.TypeOf([]byte{}),
+	5:  reflect.TypeOf([]int16{}),
 	6:  reflect.TypeOf([]int32{}),
 	7:  reflect.TypeOf([]int64{}),
 	8:  reflect.TypeOf([]float32{}),
 	9:  reflect.TypeOf([]float64{}),
+	10: reflect.TypeOf([]byte{}),
+	12: reflect.TypeOf([]time.Duration{}),
+	13: reflect.TypeOf([]Month{}),
 	14: reflect.TypeOf([]int32{}),
 	15: reflect.TypeOf([]float64{}),
+	16: reflect.TypeOf([]time.Duration{}),
 	17: reflect.TypeOf([]int32{}),
 	18: reflect.TypeOf([]int32{}),
 	19: reflect.TypeOf([]int32{})}
 
-func makeArray(vectype int8, veclen int32) interface{} {
+func makeArray(vectype int8, veclen int) interface{} {
 	switch vectype {
 	case 1, 4, 10:
 		return make([]byte, veclen)
@@ -66,6 +73,10 @@ func (h *ipcHeader) getByteOrder() binary.ByteOrder {
 		order = binary.BigEndian
 	}
 	return order
+}
+
+func (h *ipcHeader) ok() bool {
+	return h.ByteOrder == 0x01 && h.RequestType < 3 && h.Compressed < 0x02 && h.MsgSize > 9
 }
 
 func uncompress(b []byte) (dst []byte) {
@@ -126,8 +137,10 @@ func Decode(src *bufio.Reader) (data *K, msgtype int, e error) {
 	var header ipcHeader
 	e = binary.Read(src, binary.LittleEndian, &header)
 	if e != nil {
-		glog.Errorln("Failed to read message header:", e)
-		return nil, -1, e
+		return nil, -1, errors.New("Failed to read message header:" + e.Error())
+	}
+	if !header.ok() {
+		return nil, -1, errors.New("header is invalid")
 	}
 	// try to buffer entire message in one go
 	src.Peek(int(header.MsgSize - 8))
@@ -137,8 +150,7 @@ func Decode(src *bufio.Reader) (data *K, msgtype int, e error) {
 		compressed := make([]byte, header.MsgSize-8)
 		_, e = io.ReadFull(src, compressed)
 		if e != nil {
-			glog.Errorln("Decode:readcompressed error - ", e)
-			return nil, int(header.RequestType), e
+			return nil, int(header.RequestType), errors.New("Decode:readcompressed error - " + e.Error())
 		}
 		var uncompressed = uncompress(compressed)
 		var buf = bufio.NewReader(bytes.NewReader(uncompressed[8:]))
@@ -153,10 +165,8 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 	var msgtype int8
 	err = binary.Read(r, order, &msgtype)
 	if err != nil {
-		glog.Errorln("readData:msgtype", err)
 		return nil, err
 	}
-	glog.V(1).Infoln("Msg Type:", msgtype)
 	switch msgtype {
 	case -KB:
 		var b byte
@@ -221,30 +231,30 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			glog.Errorln("readData: Failed to read vecattr", err)
-			return nil, err
+			return nil, errors.New("readData: Failed to read vecattr:" + err.Error())
 		}
-		var veclen int32
+		var veclen uint32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			glog.Errorln("Reading vector length failed -> ", err)
-			return nil, err
+			return nil, errors.New("Reading vector length failed -> " + err.Error())
 		}
 		var arr interface{}
-		if msgtype >= KI && msgtype <= KF {
+		if msgtype >= KB && msgtype <= KT {
 			bytedata := make([]byte, int(veclen)*typeSize[msgtype])
 			_, err = io.ReadFull(r, bytedata)
+			if err != nil {
+				return nil, errors.New("Not enough data - " + err.Error())
+			}
 			head := (*reflect.SliceHeader)(unsafe.Pointer(&bytedata))
 			head.Len = int(veclen)
 			head.Cap = int(veclen)
 			arr = reflect.Indirect(reflect.NewAt(typeReflect[msgtype], unsafe.Pointer(&bytedata))).Interface()
 		} else {
-			arr = makeArray(msgtype, veclen)
+			arr = makeArray(msgtype, int(veclen))
 			err = binary.Read(r, order, arr)
 		}
 		if err != nil {
-			glog.Errorln("Error during conversion -> ", err)
-			return nil, err
+			return nil, errors.New("Error during conversion -> " + err.Error())
 		}
 		if msgtype == KC {
 			return &K{msgtype, vecattr, string(arr.([]byte))}, nil
@@ -308,14 +318,12 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			glog.Errorln("readData: Failed to read vecattr", err)
-			return nil, err
+			return nil, errors.New("readData: Failed to read vecattr ->" + err.Error())
 		}
-		var veclen int32
+		var veclen uint32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			glog.Errorln("Reading vector length failed -> ", err)
-			return nil, err
+			return nil, errors.New("Reading vector length failed -> " + err.Error())
 		}
 		var arr = make([]*K, veclen)
 		for i := 0; i < int(veclen); i++ {
@@ -330,16 +338,14 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			glog.Errorln("readData: Failed to read vecattr", err)
-			return nil, err
+			return nil, errors.New("readData: Failed to read vecattr ->" + err.Error())
 		}
-		var veclen int32
+		var veclen uint32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			glog.Errorln("Reading vector length failed -> ", err)
-			return nil, err
+			return nil, errors.New("Reading vector length failed -> " + err.Error())
 		}
-		var arr = makeArray(msgtype, veclen).([]string)
+		var arr = makeArray(msgtype, int(veclen)).([]string)
 		for i := 0; i < int(veclen); i++ {
 			line, err := r.ReadSlice(0)
 			if err != nil {
@@ -349,7 +355,6 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		}
 		return &K{msgtype, vecattr, arr}, nil
 	case XD, SD:
-		var res Dict
 		dk, err := readData(r, order)
 		if err != nil {
 			return nil, err
@@ -358,18 +363,19 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		if err != nil {
 			return nil, err
 		}
-		res = Dict{dk, dv}
-		return &K{msgtype, NONE, res}, nil
+		return NewDict(dk, dv), nil
 	case XT:
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			glog.Errorln("readData: Failed to read vecattr", err)
-			return nil, err
+			return nil, errors.New("readData: Failed to read vecattr" + err.Error())
 		}
 		d, err := readData(r, order)
 		if err != nil {
 			return nil, err
+		}
+		if d.Type != XD {
+			return nil, errors.New("expected dict")
 		}
 		dict := d.Data.(Dict)
 		colNames := dict.Key.Data.([]string)
@@ -387,6 +393,9 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		if err != nil {
 			return nil, err
 		}
+		if b.Type != KC {
+			return nil, errors.New("expected string")
+		}
 		f.Body = b.Data.(string)
 		return &K{msgtype, NONE, f}, nil
 	case KFUNCUP, KFUNCBP, KFUNCTR:
@@ -397,8 +406,11 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		}
 		return &K{msgtype, NONE, primitiveidx}, nil
 	case KPROJ, KCOMP:
-		var n int32
+		var n uint32
 		err = binary.Read(r, order, &n)
+		if err != nil {
+			return nil, err
+		}
 		var res = make([]interface{}, n)
 		for i := 0; i < int(n); i++ {
 			res[i], err = readData(r, order)
