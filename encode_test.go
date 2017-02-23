@@ -30,7 +30,7 @@ var encodingTests = []struct {
 	{"`a`b!enlist each 2 3", NewDict(SymbolV([]string{"a", "b"}),
 		&K{K0, NONE, []*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}}}),
 		DictWithVectorsBytes},
-	{"1#2013.06.10T22:03:49.713", &K{KZ, NONE, []float64{4909.919}}, DateTimeVecBytes},
+	{"1#2013.06.10T22:03:49.713", &K{KZ, NONE, []float64{4909.9193253819449}}, DateTimeVecBytes},
 	{"1#2013.06.10", &K{KD, NONE, []int32{4909}}, DateVecBytes},
 	{"1#21:53:37.963", &K{KT, NONE, []int32{78817963}}, TimeVecBytes},
 	{"21:22:01 + 1 2", &K{KV, NONE, []int32{76922, 76923}}, SecondVecBytes},
@@ -48,7 +48,7 @@ func TestEncoding(t *testing.T) {
 			continue
 		}
 		if !bytes.Equal(buf.Bytes(), tt.expected) {
-			t.Errorf("Encoded '%s' incorrectly.", tt.desc)
+			t.Errorf("Encoded '%s' incorrectly. Expected '%v', got '%v'\n", tt.desc, tt.expected, buf.Bytes())
 		}
 	}
 }
