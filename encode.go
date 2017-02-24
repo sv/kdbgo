@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"strconv"
 )
 
 func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
@@ -56,7 +57,7 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	case -KI, -KJ, -KE, -KF:
 		binary.Write(dbuf, order, int8(data.Type))
 		binary.Write(dbuf, order, data.Data)
-	case KG, KI, KJ, KE, KF, KZ, KT, KD, KV, KU, KM:
+	case KG, KI, KJ, KE, KF, KZ, KT, KD, KV, KU, KM, KP, KN:
 		binary.Write(dbuf, order, int8(data.Type))
 		binary.Write(dbuf, order, NONE) // attributes
 		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
@@ -64,13 +65,22 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	case XD:
 		tosend := data.Data.(Dict)
 		binary.Write(dbuf, order, XD)
-		writeData(dbuf, order, tosend.Key)
-		writeData(dbuf, order, tosend.Value)
+		err = writeData(dbuf, order, tosend.Key)
+		if err != nil {
+			return err
+		}
+		err = writeData(dbuf, order, tosend.Value)
+		if err != nil {
+			return err
+		}
 	case XT:
 		tosend := data.Data.(Table)
 		binary.Write(dbuf, order, XT)
 		binary.Write(dbuf, order, NONE) // attributes
-		writeData(dbuf, order, &K{XD, NONE, Dict{&K{KS, NONE, tosend.Columns}, &K{K0, NONE, tosend.Data}}})
+		err = writeData(dbuf, order, &K{XD, NONE, Dict{&K{KS, NONE, tosend.Columns}, &K{K0, NONE, tosend.Data}}})
+		if err != nil {
+			return err
+		}
 	case KERR:
 		tosend := data.Data.(error)
 		binary.Write(dbuf, order, int8(data.Type))
@@ -81,10 +91,12 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		binary.Write(dbuf, order, int8(data.Type))
 		binary.Write(dbuf, order, []byte(tosend.Namespace))
 		binary.Write(dbuf, order, byte(0))
-		writeData(dbuf, order, &K{KC, NONE, tosend.Body})
-
+		err = writeData(dbuf, order, &K{KC, NONE, tosend.Body})
+		if err != nil {
+			return err
+		}
 	default:
-		return errors.New("unknown type")
+		return errors.New("unknown type " + strconv.Itoa(int(data.Type)))
 	}
 	return nil
 
@@ -97,17 +109,18 @@ func min32(a, b int32) int32 {
 	return a
 }
 
+/*
 func compress(b []byte) (dst []byte) {
 	i := byte(0)
-	var g bool
+	var g int32
 	//j := int32(len(b))
-	f, h0, h := int32(0), 0, 0
+	f, h0, h, g, head := int32(0), int32(0), int32(0), int32(0), int32(17)
 	dst = make([]byte, len(b)/2)
 	c := 12
 	d := c
 	e := len(dst)
-	p := int32(0)
-	q, r, s0 := int32(0), int32(0), int32(0)
+	p := 0
+	q, r, s0 := 0, 0, 0
 	s := int32(8)
 	t := int32(len(b))
 	a := make([]int32, 256)
@@ -117,8 +130,7 @@ func compress(b []byte) (dst []byte) {
 	for ; s < t; i *= 2 {
 		if 0 == i {
 			if d > e-17 {
-				dst = b
-				return
+				return b
 			}
 			i = 1
 			dst[c] = byte(f)
@@ -127,7 +139,7 @@ func compress(b []byte) (dst []byte) {
 			f = 0
 		}
 
-		h = int(0xFF & (b[s] ^ b[s+1]))
+		h = int(b[s] ^ b[s+1])
 		p = a[h]
 		g = (s > t-3) || (0 == p) || (0 != (b[s] ^ b[p]))
 
@@ -161,7 +173,7 @@ func compress(b []byte) (dst []byte) {
 	//dst[4:8]=d
 	return dst
 }
-
+*/
 // Encode data to ipc format as msgtype(sync/async/response) to specified writer
 func Encode(w io.Writer, msgtype int, data *K) (err error) {
 	var order = binary.LittleEndian
