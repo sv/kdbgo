@@ -79,11 +79,11 @@ func (h *ipcHeader) ok() bool {
 	return h.ByteOrder == 0x01 && h.RequestType < 3 && h.Compressed < 0x02 && h.MsgSize > 9
 }
 
-func uncompress(b []byte) (dst []byte) {
-	n := int32(0)
-	r := int32(0)
-	f := int32(0)
-	s := int32(8)
+func Uncompress(b []byte) (dst []byte) {
+	if len(b) < 4+1 {
+		return b
+	}
+	n, r, f, s := int32(0), int32(0), int32(0), int32(8)
 	p := int32(s)
 	i := int16(0)
 	var usize int32
@@ -152,7 +152,7 @@ func Decode(src *bufio.Reader) (data *K, msgtype int, e error) {
 		if e != nil {
 			return nil, int(header.RequestType), errors.New("Decode:readcompressed error - " + e.Error())
 		}
-		var uncompressed = uncompress(compressed)
+		var uncompressed = Uncompress(compressed)
 		var buf = bufio.NewReader(bytes.NewReader(uncompressed[8:]))
 		data, e = readData(buf, order)
 		return data, int(header.RequestType), e

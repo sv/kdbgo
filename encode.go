@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"strconv"
@@ -109,24 +110,29 @@ func min32(a, b int32) int32 {
 	return a
 }
 
-/*
-func compress(b []byte) (dst []byte) {
+func Compress(b []byte) (dst []byte) {
+	if len(b) <= 17 {
+		return b
+	}
 	i := byte(0)
-	var g int32
 	//j := int32(len(b))
-	f, h0, h, g, head := int32(0), int32(0), int32(0), int32(0), int32(17)
+	f, h0, h := int32(0), int32(0), int32(0)
+	g := false
 	dst = make([]byte, len(b)/2)
+	lenbuf := make([]byte, 4)
 	c := 12
 	d := c
 	e := len(dst)
 	p := 0
-	q, r, s0 := 0, 0, 0
+	q, r, s0 := int32(0), int32(0), int32(0)
 	s := int32(8)
 	t := int32(len(b))
 	a := make([]int32, 256)
 	copy(dst[:4], b[:4])
 	dst[2] = 1
-	//dst[8:]=[]byte(strconv.Itoa(int(j)))
+	binary.LittleEndian.PutUint32(lenbuf, uint32(len(b)))
+	fmt.Println(len(dst), len(b), lenbuf)
+	copy(dst[8:], lenbuf)
 	for ; s < t; i *= 2 {
 		if 0 == i {
 			if d > e-17 {
@@ -139,9 +145,12 @@ func compress(b []byte) (dst []byte) {
 			f = 0
 		}
 
-		h = int(b[s] ^ b[s+1])
-		p = a[h]
-		g = (s > t-3) || (0 == p) || (0 != (b[s] ^ b[p]))
+		g = (s > t-3)
+		if !g {
+			h = int32(0xff & (b[s] ^ b[s+1]))
+			p = int(a[h])
+			g = (0 == p) || (0 != (b[s] ^ b[p]))
+		}
 
 		if 0 < s0 {
 			a[h0] = s0
@@ -160,7 +169,7 @@ func compress(b []byte) (dst []byte) {
 			s += 2
 			r = s
 			q = min32(s+255, t)
-			for ; b[p] == b[s] && s < q; s++ {
+			for ; b[p] == b[s] && s+1 < q; s++ {
 				p++
 			}
 			dst[d] = byte(h)
@@ -170,10 +179,11 @@ func compress(b []byte) (dst []byte) {
 		}
 	}
 	dst[c] = byte(f)
-	//dst[4:8]=d
+	binary.LittleEndian.PutUint32(lenbuf, uint32(d))
+	copy(dst[4:], lenbuf)
 	return dst
 }
-*/
+
 // Encode data to ipc format as msgtype(sync/async/response) to specified writer
 func Encode(w io.Writer, msgtype int, data *K) (err error) {
 	var order = binary.LittleEndian
@@ -187,6 +197,6 @@ func Encode(w io.Writer, msgtype int, data *K) (err error) {
 	buf := new(bytes.Buffer)
 	err = binary.Write(buf, order, header)
 	err = binary.Write(buf, order, dbuf.Bytes())
-	_, err = w.Write(buf.Bytes())
+	_, err = w.Write(Compress(buf.Bytes()))
 	return err
 }

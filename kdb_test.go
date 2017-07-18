@@ -3,6 +3,7 @@ package kdb
 import (
 	"fmt"
 	//"reflect"
+	"crypto/tls"
 	"testing"
 	"time"
 )
@@ -33,6 +34,28 @@ func TestConnTimeout(t *testing.T) {
 	}
 }
 
+func TestConnUnix(t *testing.T) {
+	con, err := DialUnix(testHost, testPort, "")
+	if err != nil {
+		t.Fatalf("Failed to connect to test instance via UDS: %s", err)
+	}
+	err = con.Close()
+	if err != nil {
+		t.Error("Failed to close connection on UDS.", err)
+	}
+}
+
+func TestConnTLS(t *testing.T) {
+	con, err := DialTLS(testHost, testPort, "", &tls.Config{InsecureSkipVerify: true})
+	if err != nil {
+		t.Fatalf("Failed to connect to test instance via UDS: %s", err)
+	}
+	err = con.Close()
+	if err != nil {
+		t.Error("Failed to close connection on UDS.", err)
+	}
+}
+
 func TestSyncCall(t *testing.T) {
 	con, err := DialKDB(testHost, testPort, "")
 	if err != nil {
@@ -40,6 +63,49 @@ func TestSyncCall(t *testing.T) {
 	}
 	fmt.Println("Testing sync function call")
 	_, _ = con.Call("show `testreq;(.q;.Q;.h;.o);1000000#0i")
+	/*fmt.Println("Result:", res, err)
+	if res.(string) != "test" {
+		t.Error("Unexpected result:", res)
+	}*/
+}
+
+func TestSyncCallCompress(t *testing.T) {
+	con, err := DialKDB(testHost, testPort, "")
+	if err != nil {
+		t.Fatalf("Failed to connect to test instance: %s", err)
+	}
+	vec := make([]int64, 25000000)
+	for i := range vec {
+		vec[i] = int64(i)
+	}
+	fmt.Println("Testing sync function call with large data compression")
+	res, _ := con.Call("sum", &K{KJ, NONE, vec})
+	fmt.Println("Result:", res, err)
+	if res != nil && res.Data.(int64) != 499999500000 {
+		t.Error("Unexpected result:", res, 499999500000)
+	}
+}
+
+func TestSyncCallUnix(t *testing.T) {
+	con, err := DialUnix(testHost, testPort, "")
+	if err != nil {
+		t.Fatalf("Failed to connect to test instance via UDS: %s", err)
+	}
+	fmt.Println("Testing sync function call via UDS")
+	_, _ = con.Call("show `testreqUnix;(.q;.Q;.h;.o);1000000#0i")
+	/*fmt.Println("Result:", res, err)
+	if res.(string) != "test" {
+		t.Error("Unexpected result:", res)
+	}*/
+}
+
+func TestSyncCallTLS(t *testing.T) {
+	con, err := DialTLS(testHost, testPort, "", &tls.Config{InsecureSkipVerify: true})
+	if err != nil {
+		t.Fatalf("Failed to connect to test instance via UDS: %s", err)
+	}
+	fmt.Println("Testing sync function call via TLS")
+	_, _ = con.Call("show `testreqTLS;(.q;.Q;.h;.o);1000000#0i")
 	/*fmt.Println("Result:", res, err)
 	if res.(string) != "test" {
 		t.Error("Unexpected result:", res)

@@ -3,6 +3,7 @@ package kdb
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -17,7 +18,7 @@ import (
 
 // KDBConn establishes connection and communicates using Q IPC protocol
 type KDBConn struct {
-	con     *net.TCPConn
+	con     net.Conn
 	rbuf    *bufio.Reader
 	Host    string
 	Port    string
@@ -121,6 +122,57 @@ func DialKDB(host string, port int, auth string) (*KDBConn, error) {
 	return DialKDBTimeout(host, port, auth, timeout)
 }
 
+func kdbHandshake(c net.Conn, auth string) error {
+	// handshake - assuming latest protocol
+	var buf = bytes.NewBufferString(auth)
+	// capabilities
+	// 3 - uuid/etc
+	buf.WriteByte(3)
+	buf.WriteByte(0)
+	_, err := c.Write(buf.Bytes())
+	if err != nil {
+		c.Close()
+		return err
+	}
+	var reply = make([]byte, 2+len(auth))
+	n, err := c.Read(reply)
+	if err != nil {
+		c.Close()
+		return err
+	}
+	if n != 1 {
+		c.Close()
+		return errors.New("Authentication error. Max supported version - " + string(reply[0]))
+	}
+	return nil
+}
+
+func DialTLS(host string, port int, auth string, cfg *tls.Config) (*KDBConn, error) {
+	c, err := tls.Dial("tcp", host+":"+fmt.Sprint(port), cfg)
+	if err != nil {
+		return nil, err
+	}
+	err = kdbHandshake(c, auth)
+	if err != nil {
+		return nil, err
+	}
+	kdbconn := KDBConn{c, bufio.NewReader(c), "", string(port), auth}
+	return &kdbconn, nil
+}
+
+func DialUnix(host string, port int, auth string) (*KDBConn, error) {
+	c, err := net.Dial("unix", "/tmp/kx."+fmt.Sprint(port))
+	if err != nil {
+		return nil, err
+	}
+	err = kdbHandshake(c, auth)
+	if err != nil {
+		return nil, err
+	}
+	kdbconn := KDBConn{c, bufio.NewReader(c), "", string(port), auth}
+	return &kdbconn, nil
+}
+
 // Connect to host:port using supplied user:password. Wait timeout for connection
 func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (*KDBConn, error) {
 	conn, err := net.Dial("tcp", host+":"+fmt.Sprint(port))
@@ -128,26 +180,9 @@ func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (
 		return nil, err
 	}
 	c := conn.(*net.TCPConn)
-	// handshake - assuming latest protocol
-	var buf = bytes.NewBufferString(auth)
-	// capabilities
-	// 3 - uuid/etc
-	buf.WriteByte(3)
-	buf.WriteByte(0)
-	_, err = c.Write(buf.Bytes())
+	err = kdbHandshake(c, auth)
 	if err != nil {
-		c.Close()
 		return nil, err
-	}
-	var reply = make([]byte, 2+len(auth))
-	n, err := c.Read(reply)
-	if err != nil {
-		c.Close()
-		return nil, err
-	}
-	if n != 1 {
-		c.Close()
-		return nil, errors.New("Authentication error. Max supported version - " + string(reply[0]))
 	}
 	_ = c.SetKeepAlive(true) // care if keepalive is failed to be set?
 	kdbconn := KDBConn{c, bufio.NewReader(c), host, string(port), auth}
