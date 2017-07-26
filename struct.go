@@ -28,6 +28,7 @@ const (
 	GROUPED
 )
 
+// Q type constants
 const (
 	K0 int8 = 0 // generic type
 	//      type bytes qtype     ctype  accessor
@@ -83,30 +84,31 @@ type ipcHeader struct {
 	MsgSize     uint32
 }
 
-// short nil
+// Short nil
 const Nh int16 = math.MinInt16
 
-// short infinity
+// Short infinity
 const Wh int16 = math.MaxInt16
 
-// int nil
+// Int nil
 const Ni int32 = math.MinInt32
 
-// int infinity
+// Int Infinity
 const Wi int32 = math.MaxInt32
 
-// long nil
+// Long nil
 const Nj int64 = math.MinInt64
 
-// long infinity
+// Long Infinity
 const Wj int64 = math.MaxInt64
 
-// double nil
+// Double nil
 var Nf float64 = math.NaN()
 
-// double infinity +ve
+// Double Infinity
 var Wf float64 = math.Inf(1)
 
+// K structure
 type K struct {
 	Type int8
 	Attr Attr
@@ -152,6 +154,11 @@ func NewFunc(ctx, body string) *K {
 	return &K{KFUNC, NONE, Function{Namespace: ctx, Body: body}}
 }
 
+// Len returns number of elements in K structure
+// Special cases:
+// Atoms and functions = 1
+// Dictionaries = number of keys
+// Tables = number of rows
 func (k *K) Len() int {
 	if k.Type < K0 || k.Type >= KFUNC {
 		return 1
@@ -166,6 +173,7 @@ func (k *K) Len() int {
 	}
 }
 
+// Index returns i'th element of K structure
 func (k *K) Index(i int) interface{} {
 	if k.Type < K0 || k.Type > XT {
 		return nil
@@ -190,6 +198,7 @@ func (k *K) Index(i int) interface{} {
 	return &K{XD, NONE, t.Index(i)}
 }
 
+// Convert K structure to string
 func (k K) String() string {
 	if k.Type < K0 {
 		return fmt.Sprint(k.Data)
@@ -221,26 +230,26 @@ func (k K) String() string {
 	}
 }
 
-// message is malformated or invalid
+// Message is malformated or invalid
 var ErrBadMsg = errors.New("Bad Message")
 
-// msg header is invalid
+// Message header is invalid
 var ErrBadHeader = errors.New("Bad header")
 
 // Cannot process sync requests
 var ErrSyncRequest = errors.New("nosyncrequest")
 
-// offset between Q time
+// Epoch offset for Q time. Q epoch starts on 1st Jan 2000
 var qEpoch = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
 
-// kdb month
+// Month
 type Month int32
 
 func (m Month) String() string {
 	return fmt.Sprintf("%v.%02vm", 2000+int(m/12), int(m)%12)
 }
 
-// kdb minute type
+// Minute
 type Minute time.Time
 
 func (m Minute) String() string {
@@ -249,7 +258,7 @@ func (m Minute) String() string {
 
 }
 
-// kdb second hh:mm:ss
+// Second hh:mm:ss
 type Second time.Time
 
 func (s Second) String() string {
@@ -257,7 +266,7 @@ func (s Second) String() string {
 	return fmt.Sprintf("%02v:%02v:%02v", time.Hour(), time.Minute(), time.Second())
 }
 
-// kdb time hh:mm:ss.SSS
+// Time hh:mm:ss.SSS
 type Time time.Time
 
 func (t Time) String() string {
@@ -311,7 +320,7 @@ func (tbl Table) String() string {
 }
 
 // Dictionary: ordered key->value mapping.
-// Key and Value should be slices of the same length
+// Key and Value must be slices of the same length
 type Dict struct {
 	Key   *K
 	Value *K
@@ -333,7 +342,7 @@ func titleInitial(str string) string {
 	return ""
 }
 
-// unmarshall dict to struct
+// Unmarshall dict to struct
 func UnmarshalDict(t Dict, v interface{}) error {
 	var keys = t.Key.Data.([]string)
 	var vals = t.Value.Data.([]*K)
@@ -355,7 +364,7 @@ func UnmarshalDict(t Dict, v interface{}) error {
 	return nil
 }
 
-// Unmarshall Q dictionary to map[string]{}interface
+// Unmarshall dict to map[string]{}interface
 func UnmarshalDictToMap(t Dict, v interface{}) error {
 	vv := reflect.ValueOf(v)
 	if vv.Kind() == reflect.Map {
@@ -406,7 +415,7 @@ func UnmarshalTable(t Table, v interface{}) (interface{}, error) {
 	return vv.Interface(), nil
 }
 
-// Struct that represents q function
+// Function
 type Function struct {
 	Namespace string
 	Body      string

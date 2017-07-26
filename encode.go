@@ -110,6 +110,7 @@ func min32(a, b int32) int32 {
 	return a
 }
 
+// Compress b using Q IPC compression
 func Compress(b []byte) (dst []byte) {
 	if len(b) <= 17 {
 		return b

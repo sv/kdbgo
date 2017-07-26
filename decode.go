@@ -79,6 +79,7 @@ func (h *ipcHeader) ok() bool {
 	return h.ByteOrder == 0x01 && h.RequestType < 3 && h.Compressed < 0x02 && h.MsgSize > 9
 }
 
+// Ucompress byte array compressed with Q IPC compression
 func Uncompress(b []byte) (dst []byte) {
 	if len(b) < 4+1 {
 		return b
