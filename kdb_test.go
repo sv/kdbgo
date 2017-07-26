@@ -4,12 +4,25 @@ import (
 	"fmt"
 	//"reflect"
 	"crypto/tls"
+	"log"
+	"os"
+	"os/exec"
 	"testing"
 	"time"
 )
 
 var testHost = "localhost"
 var testPort = 1234
+
+func TestMain(m *testing.M) {
+	fmt.Println("Starting q process on port 1234")
+	cmd := exec.Command("q", "-p", "1234")
+	err := cmd.Start()
+	if err != nil {
+		log.Fatal("Failed to start q", err)
+	}
+	os.Exit(m.Run())
+}
 
 func TestConn(t *testing.T) {
 	con, err := DialKDB(testHost, testPort, "")
