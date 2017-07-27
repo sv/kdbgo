@@ -42,7 +42,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Failed to start q", err)
 	}
-	time.Sleep(3 * time.Second)
 	buf := make([]byte, 16)
 	n, _ := stdout.Read(buf)
 	testPort, err = strconv.Atoi(string(buf[:bytes.IndexByte(buf, 'i')]))
