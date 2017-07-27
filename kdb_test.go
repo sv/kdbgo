@@ -4,24 +4,82 @@ import (
 	"fmt"
 	//"reflect"
 	"crypto/tls"
+	//"io"
+	"bytes"
 	"log"
 	"os"
+	"strconv"
+	//"io/ioutil"
 	"os/exec"
 	"testing"
 	"time"
 )
 
 var testHost = "localhost"
-var testPort = 1234
+var testPort = 0
 
 func TestMain(m *testing.M) {
-	fmt.Println("Starting q process on port 1234")
-	cmd := exec.Command("q", "-p", "1234")
-	err := cmd.Start()
+	fmt.Println("Starting q process on random port")
+	_, err := exec.LookPath("q")
+	if err != nil {
+		log.Fatal("installing q is in your future")
+	}
+	cmd := exec.Command("q", "-p", "0W", "-q")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		log.Fatal("Failed to connect stdin", err)
+	}
+	stdin.Write([]byte(".z.pi:.z.pg:.z.ps:{value 0N!x};system\"p\"\n"))
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Fatal("Failed to connect stdout", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = cmd.Start()
 	if err != nil {
 		log.Fatal("Failed to start q", err)
 	}
-	os.Exit(m.Run())
+	time.Sleep(3 * time.Second)
+	buf := make([]byte, 16)
+	n, _ := stdout.Read(buf)
+	testPort, err = strconv.Atoi(string(buf[:bytes.IndexByte(buf, 'i')]))
+	if err != nil {
+		fmt.Println("Failed to setup listening port", string(buf[:n]), err)
+		cmd.Process.Kill()
+		os.Exit(1)
+	}
+	fmt.Println("Listening port is ", testPort)
+	go func() {
+		for {
+			buf := make([]byte, 256)
+			n, err := stderr.Read(buf)
+			fmt.Println("Q stderr output:", string(buf[:n]))
+			if err != nil {
+				fmt.Println("Q stderr error:", err)
+				return
+			}
+		}
+	}()
+	go func() {
+		for {
+			buf := make([]byte, 256)
+			n, err := stdout.Read(buf)
+			fmt.Println("Q stdout output:", string(buf[:n]))
+			if err != nil {
+				fmt.Println("Q stdout error:", err)
+				return
+			}
+		}
+	}()
+	//stdin.Close()
+	res := m.Run()
+	stdin.Write([]byte("show `exiting_process;\nexit 0\n"))
+	cmd.Wait()
+
+	os.Exit(res)
 }
 
 func TestConn(t *testing.T) {
@@ -61,11 +119,11 @@ func TestConnUnix(t *testing.T) {
 func TestConnTLS(t *testing.T) {
 	con, err := DialTLS(testHost, testPort, "", &tls.Config{InsecureSkipVerify: true})
 	if err != nil {
-		t.Fatalf("Failed to connect to test instance via UDS: %s", err)
+		t.Fatalf("Failed to connect to test instance via TLS: %s", err)
 	}
 	err = con.Close()
 	if err != nil {
-		t.Error("Failed to close connection on UDS.", err)
+		t.Error("Failed to close connection on TLS.", err)
 	}
 }
 
@@ -115,7 +173,7 @@ func TestSyncCallUnix(t *testing.T) {
 func TestSyncCallTLS(t *testing.T) {
 	con, err := DialTLS(testHost, testPort, "", &tls.Config{InsecureSkipVerify: true})
 	if err != nil {
-		t.Fatalf("Failed to connect to test instance via UDS: %s", err)
+		t.Fatalf("Failed to connect to test instance via TLS: %s", err)
 	}
 	fmt.Println("Testing sync function call via TLS")
 	_, _ = con.Call("show `testreqTLS;(.q;.Q;.h;.o);1000000#0i")
@@ -132,11 +190,14 @@ func TestAsyncCall(t *testing.T) {
 	}
 	err = con.AsyncCall("show `asynctest;asynctest:1b")
 	if err != nil {
-		t.Error("Async call failed", err)
+		t.Fatal("Async call failed", err)
 	}
 	// check result
 	res, err := con.Call("asynctest")
 	fmt.Println("Result:", res, err)
+	if err != nil {
+		t.Fatal("Fetching result error", err)
+	}
 	if !res.Data.(bool) {
 		t.Error("Unexpected result:", res)
 	}
