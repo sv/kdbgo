@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
 	"strconv"
@@ -132,7 +131,6 @@ func Compress(b []byte) (dst []byte) {
 	copy(dst[:4], b[:4])
 	dst[2] = 1
 	binary.LittleEndian.PutUint32(lenbuf, uint32(len(b)))
-	fmt.Println(len(dst), len(b), lenbuf)
 	copy(dst[8:], lenbuf)
 	for ; s < t; i *= 2 {
 		if 0 == i {
