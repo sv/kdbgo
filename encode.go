@@ -180,7 +180,7 @@ func Compress(b []byte) (dst []byte) {
 	dst[c] = byte(f)
 	binary.LittleEndian.PutUint32(lenbuf, uint32(d))
 	copy(dst[4:], lenbuf)
-	return dst
+	return dst[:d:d]
 }
 
 // Encode data to ipc format as msgtype(sync/async/response) to specified writer
