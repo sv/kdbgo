@@ -15,7 +15,7 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	case K0:
 		tosend := data.Data.([]*K)
 		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, NONE) // attributes
+		binary.Write(dbuf, order, data.Attr) // attributes
 		binary.Write(dbuf, order, int32(len(tosend)))
 		for i := 0; i < len(tosend); i++ {
 			err = writeData(dbuf, order, tosend[i])
@@ -33,13 +33,13 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		tosend := data.Data.(string)
 
 		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, NONE) // attributes
+		binary.Write(dbuf, order, data.Attr) // attributes
 		binary.Write(dbuf, order, int32(len(tosend)))
 		binary.Write(dbuf, order, []byte(tosend))
 	case KS:
 		tosend := data.Data.([]string)
 		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, NONE) // attributes
+		binary.Write(dbuf, order, data.Attr) // attributes
 		binary.Write(dbuf, order, int32(len(tosend)))
 		for i := 0; i < len(tosend); i++ {
 			binary.Write(dbuf, order, []byte(tosend[i]))
@@ -64,7 +64,7 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		binary.Write(dbuf, order, tosend.Sub(qEpoch))
 	case KP:
 		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, NONE) // attributes
+		binary.Write(dbuf, order, data.Attr) // attributes
 		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
 		tosend := data.Data.([]time.Time)
 		for _, ts := range tosend {
@@ -72,7 +72,7 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		}
 	case KG, KI, KJ, KE, KF, KZ, KT, KD, KV, KU, KM, KN:
 		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, NONE) // attributes
+		binary.Write(dbuf, order, data.Attr) // attributes
 		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
 		binary.Write(dbuf, order, data.Data)
 	case XD:
@@ -89,7 +89,7 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	case XT:
 		tosend := data.Data.(Table)
 		binary.Write(dbuf, order, XT)
-		binary.Write(dbuf, order, NONE) // attributes
+		binary.Write(dbuf, order, data.Attr) // attributes
 		err = writeData(dbuf, order, &K{XD, NONE, Dict{&K{KS, NONE, tosend.Columns}, &K{K0, NONE, tosend.Data}}})
 		if err != nil {
 			return err
