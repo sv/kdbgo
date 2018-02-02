@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -499,4 +500,22 @@ func TestDateTimeVec(t *testing.T) {
 	r := bufio.NewReader(bytes.NewReader(DateTimeVecBytes))
 	fmt.Println(Decode(r))
 
+}
+
+func TestDecoding(t *testing.T) {
+	for _, tt := range encodingTests {
+		// fmt.Println(tt.desc)
+		r := bufio.NewReader(bytes.NewReader(tt.expected))
+		d, _, err := Decode(r)
+		if err != nil && tt.input.Type != KERR {
+			t.Errorf("Decoding '%s' failed:%s", tt.desc, err)
+			continue
+		}
+		if tt.input.Type == KERR {
+			d = Error(err)
+		}
+		if !reflect.DeepEqual(d, tt.input) {
+			t.Errorf("Decoded '%s' incorrectly. Expected '%v', got '%v'\n", tt.desc, tt.input, d)
+		}
+	}
 }

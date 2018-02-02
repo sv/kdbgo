@@ -145,14 +145,16 @@ func TestSyncCallCompress(t *testing.T) {
 		t.Fatalf("Failed to connect to test instance: %s", err)
 	}
 	vec := make([]int64, 25000000)
+	sum := 0
 	for i := range vec {
 		vec[i] = int64(i)
+		sum += i
 	}
 	fmt.Println("Testing sync function call with large data compression")
 	res, _ := con.Call("sum", &K{KJ, NONE, vec})
 	fmt.Println("Result:", res, err)
-	if res != nil && res.Data.(int64) != 499999500000 {
-		t.Error("Unexpected result:", res, 499999500000)
+	if res != nil && res.Data.(int64) != int64(sum) {
+		t.Error("Unexpected result:", res, sum)
 	}
 }
 
