@@ -3,6 +3,7 @@ package kdb
 import (
 	"bytes"
 	"errors"
+	"time"
 	//"fmt"
 	"testing"
 )
@@ -36,6 +37,8 @@ var encodingTests = []struct {
 	{"21:22:01 + 1 2", &K{KV, NONE, []int32{76922, 76923}}, SecondVecBytes},
 	{"21:22*til 2", &K{KU, NONE, []int32{0, 1282}}, MinuteVecBytes},
 	{"2013.06m +til 3", &K{KM, NONE, []int32{161, 162, 163}}, MonthVecBytes},
+	{"2018.01.26D01:49:00.884361000", &K{-KP, NONE, TimestampAsTime}, TimestampAsBytes},
+	{"(2018.01.26D01:49:00.884361000 2018.01.26D01:49:00.884361000)", &K{KP, NONE, []time.Time{TimestampAsTime, TimestampAsTime}}, TimestampVectorAsBytes},
 }
 
 func TestEncoding(t *testing.T) {

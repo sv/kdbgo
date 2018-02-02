@@ -7,6 +7,7 @@ import (
 	"io"
 	"reflect"
 	"strconv"
+	"time"
 )
 
 func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
@@ -57,7 +58,19 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	case -KI, -KJ, -KE, -KF:
 		binary.Write(dbuf, order, int8(data.Type))
 		binary.Write(dbuf, order, data.Data)
-	case KG, KI, KJ, KE, KF, KZ, KT, KD, KV, KU, KM, KP, KN:
+	case -KP:
+		tosend := data.Data.(time.Time)
+		binary.Write(dbuf, order, int8(data.Type))
+		binary.Write(dbuf, order, tosend.Sub(qEpoch))
+	case KP:
+		binary.Write(dbuf, order, int8(data.Type))
+		binary.Write(dbuf, order, NONE) // attributes
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
+		tosend := data.Data.([]time.Time)
+		for _, ts := range tosend {
+			binary.Write(dbuf, order, ts.Sub(qEpoch))
+		}
+	case KG, KI, KJ, KE, KF, KZ, KT, KD, KV, KU, KM, KN:
 		binary.Write(dbuf, order, int8(data.Type))
 		binary.Write(dbuf, order, NONE) // attributes
 		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))

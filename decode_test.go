@@ -59,6 +59,54 @@ func TestCharArray(t *testing.T) {
 	}
 }
 
+// -8!2018.01.26D01:49:00.884361000
+var TimestampAsBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0xf4, 0x28, 0xbf, 0xce, 0x27, 0x35, 0xec, 0xe9, 0x07}
+var TimestampAsTime = time.Date(2018, 1, 26, 1, 49, 0, 884361000, time.UTC)
+var TimestampAsInt64 = int64(570246540884361000)
+
+func TestTimestampEpoch(t *testing.T) {
+	d := TimestampAsTime
+	if d.Sub(qEpoch).Nanoseconds() != TimestampAsInt64 {
+		t.Error("Wrong epoch")
+	}
+}
+
+func TestTimestamp(t *testing.T) {
+	b := TimestampAsBytes
+	r := bufio.NewReader(bytes.NewReader(b))
+	d, _, e := Decode(r)
+	if e != nil {
+		t.Error("Failed to decode timestamp")
+	}
+	if ts, ok := d.Data.(time.Time); ok {
+		if !ts.Equal(TimestampAsTime) {
+			t.Error("Failed to decode timestamp as time.Time")
+		}
+	} else {
+		t.Error("Failed to decode timestamp")
+	}
+}
+
+// -8!(2018.01.26D01:49:00.884361000 2018.01.26D01:49:00.884361000)
+var TimestampVectorAsBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x1e, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x02, 0x00, 0x00, 0x00, 0x28, 0xbf, 0xce, 0x27, 0x35, 0xec, 0xe9, 0x07, 0x28, 0xbf, 0xce, 0x27, 0x35, 0xec, 0xe9, 0x07}
+
+func TestTimestampVector(t *testing.T) {
+	b := TimestampVectorAsBytes
+	r := bufio.NewReader(bytes.NewReader(b))
+	d, _, _ := Decode(r)
+	if vec, ok := d.Data.([]time.Time); ok {
+		if len(vec) != 2 {
+			t.Fail()
+		}
+		if !vec[0].Equal(TimestampAsTime) {
+			t.Fail()
+		}
+		if !vec[1].Equal(TimestampAsTime) {
+			t.Fail()
+		}
+	}
+}
+
 // enlist 1i
 var IntVectorBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x06, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}
 
