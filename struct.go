@@ -198,18 +198,21 @@ func (k *K) Index(i int) interface{} {
 	return &K{XD, NONE, t.Index(i)}
 }
 
+var attrPrint = map[Attr]string{NONE: "", SORTED: "`s#", UNIQUE: "`u#", PARTED: "`p#", GROUPED: "`g#"}
+
 // Convert K structure to string
 func (k K) String() string {
 	if k.Type < K0 {
 		return fmt.Sprint(k.Data)
 	}
 	if k.Type > K0 && k.Type <= KT {
-		return fmt.Sprint(k.Data)
+		return fmt.Sprint(attrPrint[k.Attr], k.Data)
 	}
 	switch k.Type {
 	case K0:
 		list := k.Data.([]*K)
 		var buf bytes.Buffer
+		buf.WriteString(attrPrint[k.Attr])
 		buf.WriteString("(")
 		for i, l := range list {
 			buf.WriteString(l.String())
@@ -220,9 +223,9 @@ func (k K) String() string {
 		buf.WriteString(")")
 		return buf.String()
 	case XD:
-		return k.Data.(Dict).String()
+		return attrPrint[k.Attr] + k.Data.(Dict).String()
 	case XT:
-		return k.Data.(Table).String()
+		return attrPrint[k.Attr] + k.Data.(Table).String()
 	case KFUNC:
 		return k.Data.(Function).Body
 	default:
