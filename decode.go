@@ -17,7 +17,7 @@ var typeSize = map[int8]int{
 	1: 1, 4: 1, 10: 1,
 	2: 16,
 	5: 2,
-	6: 4, 8: 4, 14: 4, 17: 4, 18: 4, 19: 4,
+	6: 4, 8: 4, 13: 4, 14: 4, 17: 4, 18: 4, 19: 4,
 	7: 8, 9: 8, 12: 8, 15: 8, 16: 8}
 
 var typeReflect = map[int8]reflect.Type{
@@ -269,7 +269,6 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			}
 			return &K{msgtype, vecattr, timearr}, nil
 		}
-
 		if msgtype == KD {
 			arr := arr.([]int32)
 			var timearr = make([]time.Time, veclen)
