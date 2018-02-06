@@ -29,7 +29,7 @@ var encodingTests = []struct {
 	{"([]a:enlist 2;b:enlist 3)", NewTable([]string{"a", "b"},
 		[]*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}}),
 		TableBytes},
-	{"([a:enlist 2i]b:enlist 3i)", NewDict(NewTable([]string{"a"}, []*K{&K{KI, NONE, []int32{2}}}), NewTable([]string{"b"}, []*K{&K{KI, NONE, []int32{3}}})), KeyedTableBytes},
+	{"([a:enlist 2i]b:enlist 3i)", NewDict(NewTable([]string{"a"}, []*K{{KI, NONE, []int32{2}}}), NewTable([]string{"b"}, []*K{{KI, NONE, []int32{3}}})), KeyedTableBytes},
 	{"`a`b!enlist each 2 3", NewDict(SymbolV([]string{"a", "b"}),
 		&K{K0, NONE, []*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}}}),
 		DictWithVectorsBytes},
