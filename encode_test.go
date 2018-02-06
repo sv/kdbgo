@@ -13,7 +13,8 @@ var encodingTests = []struct {
 	input    *K     // input
 	expected []byte // expected result
 }{
-	{"false", &K{-KB, NONE, false}, BoolBytes},
+	{"0b", &K{-KB, NONE, false}, BoolBytes},
+	{"01b", &K{KB, NONE, []bool{false, true}}, BoolVecBytes},
 	{"1i", Int(1), IntBytes},
 	{"enlist 1i", &K{KI, NONE, []int32{1}}, IntVectorBytes},
 	{"`byte$til 5", &K{KG, NONE, []byte{0, 1, 2, 3, 4}}, ByteVectorBytes},

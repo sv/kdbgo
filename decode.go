@@ -21,7 +21,7 @@ var typeSize = map[int8]int{
 	7: 8, 9: 8, 12: 8, 15: 8, 16: 8}
 
 var typeReflect = map[int8]reflect.Type{
-	1:  reflect.TypeOf([]byte{}),
+	1:  reflect.TypeOf([]bool{}),
 	2:  reflect.TypeOf([]uuid.UUID{}),
 	4:  reflect.TypeOf([]byte{}),
 	5:  reflect.TypeOf([]int16{}),
@@ -41,7 +41,9 @@ var typeReflect = map[int8]reflect.Type{
 
 func makeArray(vectype int8, veclen int) interface{} {
 	switch vectype {
-	case 1, 4, 10:
+	case 1:
+		return make([]bool, veclen)
+	case 4, 10:
 		return make([]byte, veclen)
 	case 2:
 		return make([]uuid.UUID, veclen)
@@ -260,7 +262,6 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		if msgtype == KC {
 			return &K{msgtype, vecattr, string(arr.([]byte))}, nil
 		}
-
 		if msgtype == KP {
 			arr := arr.([]time.Duration)
 			var timearr = make([]time.Time, veclen)

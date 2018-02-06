@@ -70,6 +70,15 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		for _, ts := range tosend {
 			binary.Write(dbuf, order, ts.Sub(qEpoch))
 		}
+	case KB:
+		binary.Write(dbuf, order, int8(data.Type))
+		binary.Write(dbuf, order, data.Attr) // attributes
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
+		tosend := data.Data.([]bool)
+		boolmap := map[bool]byte{false: 0x00, true: 0x01}
+		for _, b := range tosend {
+			binary.Write(dbuf, order, boolmap[b])
+		}
 	case KG, KI, KJ, KE, KF, KZ, KT, KD, KV, KU, KM, KN:
 		binary.Write(dbuf, order, int8(data.Type))
 		binary.Write(dbuf, order, data.Attr) // attributes
