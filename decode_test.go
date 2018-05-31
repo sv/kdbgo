@@ -73,6 +73,8 @@ func TestCharArray(t *testing.T) {
 var TimestampAsBytes = []byte{0x01, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0xf4, 0x28, 0xbf, 0xce, 0x27, 0x35, 0xec, 0xe9, 0x07}
 var TimestampAsTime = time.Date(2018, 1, 26, 1, 49, 0, 884361000, time.UTC)
 var TimestampAsInt64 = int64(570246540884361000)
+var DatetimeAsTime = time.Date(2013, 6, 10, 22, 03, 49, 713000000, time.UTC)
+var DateAsTime = time.Date(2013, 6, 10, 0, 0, 0, 00000000, time.UTC)
 
 func TestTimestampEpoch(t *testing.T) {
 	d := TimestampAsTime
