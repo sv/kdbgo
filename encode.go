@@ -230,19 +230,28 @@ func Compress(b []byte) (dst []byte) {
 	return dst[:d:d]
 }
 
-// Encode data to ipc format as msgtype(sync/async/response) to specified writer
-func Encode(w io.Writer, msgtype int, data *K) (err error) {
+func EncodeRaw(msgtype int, data *K) ([]byte, error) {
 	var order = binary.LittleEndian
 	dbuf := new(bytes.Buffer)
-	err = writeData(dbuf, order, data)
+	err := writeData(dbuf, order, data)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	msglen := uint32(8 + dbuf.Len())
 	var header = ipcHeader{1, byte(msgtype), 0, 0, msglen}
 	buf := new(bytes.Buffer)
 	err = binary.Write(buf, order, header)
 	err = binary.Write(buf, order, dbuf.Bytes())
-	_, err = w.Write(Compress(buf.Bytes()))
+	return buf.Bytes(), nil
+}
+
+// Encode data to ipc format as msgtype(sync/async/response) to specified writer
+func Encode(w io.Writer, msgtype int, data *K) (err error) {
+	buf, err := EncodeRaw(msgtype, data)
+	if err != nil {
+		return nil
+	}
+	_, err = w.Write(Compress(buf))
+	//_, err = w.Write(buf.Bytes())
 	return err
 }

@@ -139,30 +139,59 @@ func Uncompress(b []byte) (dst []byte) {
 
 // Decodes data from src in q ipc format.
 func Decode(src *bufio.Reader) (data *K, msgtype int, e error) {
-	var header ipcHeader
-	e = binary.Read(src, binary.LittleEndian, &header)
+	header, e := DecodeHeader(src)
 	if e != nil {
 		return nil, -1, errors.New("Failed to read message header:" + e.Error())
 	}
+	// try to buffer entire message in one go
+	src.Peek(int(header.MsgSize - 8))
+	return DecodeData(src, header)
+}
+
+func DecodeHeader(src *bufio.Reader) (*ipcHeader, error) {
+	var header ipcHeader
+	e := binary.Read(src, binary.LittleEndian, &header)
+	if e != nil {
+		return nil, e
+	}
 	if !header.ok() {
-		return nil, -1, errors.New("header is invalid")
+		return nil, errors.New("header is invalid")
+	}
+	return &header, nil
+}
+
+func DecodeRaw(src *bufio.Reader) ([]byte, *ipcHeader, error) {
+	headerRaw := make([]byte, 8)
+	binary.Read(src, binary.LittleEndian, &headerRaw)
+	header, e := DecodeHeader(bufio.NewReader(bytes.NewReader(headerRaw)))
+	if e != nil {
+		return nil, header, errors.New("Failed to read message header:" + e.Error())
 	}
 	// try to buffer entire message in one go
 	src.Peek(int(header.MsgSize - 8))
-
-	var order = header.getByteOrder()
-	if header.Compressed == 0x01 {
-		compressed := make([]byte, header.MsgSize-8)
-		_, e = io.ReadFull(src, compressed)
-		if e != nil {
-			return nil, int(header.RequestType), errors.New("Decode:readcompressed error - " + e.Error())
-		}
-		var uncompressed = Uncompress(compressed)
-		var buf = bufio.NewReader(bytes.NewReader(uncompressed[8:]))
-		data, e = readData(buf, order)
-		return data, int(header.RequestType), e
+	dataRaw := make([]byte, header.MsgSize-8)
+	_, e = io.ReadFull(src, dataRaw)
+	if e != nil {
+		return nil, header, errors.New("Decode:read error - " + e.Error())
 	}
-	data, e = readData(src, order)
+	return append(headerRaw, dataRaw...), header, nil
+}
+
+func DecodeData(src *bufio.Reader, header *ipcHeader) (data *K, msgtype int, e error) {
+	var order = header.getByteOrder()
+
+	if header.Compressed == 0x01 {
+		buf := make([]byte, header.MsgSize-8)
+		_, e = io.ReadFull(src, buf)
+		if e != nil {
+			return nil, int(header.RequestType), errors.New("Decode:read error - " + e.Error())
+		}
+		var uncompressed = Uncompress(buf)
+		data, e = readData(bufio.NewReader(bytes.NewReader(uncompressed[8:])), order)
+	} else {
+		data, e = readData(src, order)
+	}
+
 	return data, int(header.RequestType), e
 }
 
