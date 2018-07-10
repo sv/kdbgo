@@ -13,77 +13,66 @@ import (
 func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	switch data.Type {
 	case K0:
-		tosend := data.Data.([]*K)
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
-		binary.Write(dbuf, order, int32(len(tosend)))
-		for i := 0; i < len(tosend); i++ {
-			err = writeData(dbuf, order, tosend[i])
+		toSend := data.Data.([]*K)
+		binary.Write(dbuf, order, data.Type)
+		binary.Write(dbuf, order, data.Attr)
+		binary.Write(dbuf, order, int32(len(toSend)))
+		for i := 0; i < len(toSend); i++ {
+			err = writeData(dbuf, order, toSend[i])
 			if err != nil {
 				return err
 			}
 		}
-	case -KS:
-		tosend := data.Data.(string)
-
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, []byte(tosend))
-		binary.Write(dbuf, order, byte(0))
+	// Scalar types backed by any variant of boolean, int, float, bytes
+	// * Reminder: UUID is back by byte array of length 16
+	case -KB, -UU, -KG, -KH, -KI, -KJ, -KE, -KF, -KC: // TODO: case: -KM , -KD, -KZ, -KN, -KU, -KV, -KT
+		binary.Write(dbuf, order, data.Type)
+		binary.Write(dbuf, order, data.Data)
+	// Vector types backed by any variant of boolean, int, float, bytes
+	case KB, UU, KG, KH, KI, KJ, KE, KF, KM, KD, KZ, KN, KU, KV, KT:
+		binary.Write(dbuf, order, data.Type)
+		binary.Write(dbuf, order, data.Attr)
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
+		binary.Write(dbuf, order, data.Data)
+	// String
 	case KC:
-		tosend := data.Data.(string)
+		toSend := data.Data.(string)
 
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
-		binary.Write(dbuf, order, int32(len(tosend)))
-		binary.Write(dbuf, order, []byte(tosend))
+		binary.Write(dbuf, order, data.Type)
+		binary.Write(dbuf, order, data.Attr)
+		binary.Write(dbuf, order, int32(len(toSend)))
+		binary.Write(dbuf, order, []byte(toSend))
+	// Scalar symbol
+	case -KS:
+		toSend := data.Data.(string)
+
+		binary.Write(dbuf, order, data.Type)
+		binary.Write(dbuf, order, []byte(toSend))
+		binary.Write(dbuf, order, byte(0))
+	// Vector symbol
 	case KS:
-		tosend := data.Data.([]string)
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
-		binary.Write(dbuf, order, int32(len(tosend)))
-		for i := 0; i < len(tosend); i++ {
-			binary.Write(dbuf, order, []byte(tosend[i]))
+		toSend := data.Data.([]string)
+
+		binary.Write(dbuf, order, data.Type)
+		binary.Write(dbuf, order, data.Attr)
+		binary.Write(dbuf, order, int32(len(toSend)))
+		for i := 0; i < len(toSend); i++ {
+			binary.Write(dbuf, order, []byte(toSend[i]))
 			binary.Write(dbuf, order, byte(0))
 		}
-	case -KB:
-		tosend := data.Data.(bool)
-		binary.Write(dbuf, order, int8(data.Type))
-		var val byte
-		if tosend {
-			val = 0x01
-		} else {
-			val = 0x00
-		}
-		binary.Write(dbuf, order, val)
-	case -KI, -KJ, -KE, -KF, -UU:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Data)
 	case -KP:
-		tosend := data.Data.(time.Time)
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, tosend.Sub(qEpoch))
+		toSend := data.Data.(time.Time)
+
+		binary.Write(dbuf, order, data.Type)
+		binary.Write(dbuf, order, toSend.Sub(qEpoch))
 	case KP:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
+		binary.Write(dbuf, order, data.Type)
+		binary.Write(dbuf, order, data.Attr)
 		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
 		tosend := data.Data.([]time.Time)
 		for _, ts := range tosend {
 			binary.Write(dbuf, order, ts.Sub(qEpoch))
 		}
-	case KB:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
-		tosend := data.Data.([]bool)
-		boolmap := map[bool]byte{false: 0x00, true: 0x01}
-		for _, b := range tosend {
-			binary.Write(dbuf, order, boolmap[b])
-		}
-	case KG, KI, KJ, KE, KF, KZ, KT, KD, KV, KU, KM, KN, UU:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
-		binary.Write(dbuf, order, data.Data)
 	case XD:
 		tosend := data.Data.(Dict)
 		binary.Write(dbuf, order, XD)
@@ -98,19 +87,19 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	case XT:
 		tosend := data.Data.(Table)
 		binary.Write(dbuf, order, XT)
-		binary.Write(dbuf, order, data.Attr) // attributes
+		binary.Write(dbuf, order, data.Attr)
 		err = writeData(dbuf, order, &K{XD, NONE, Dict{&K{KS, NONE, tosend.Columns}, &K{K0, NONE, tosend.Data}}})
 		if err != nil {
 			return err
 		}
 	case KERR:
 		tosend := data.Data.(error)
-		binary.Write(dbuf, order, int8(data.Type))
+		binary.Write(dbuf, order, data.Type)
 		binary.Write(dbuf, order, []byte(tosend.Error()))
 		binary.Write(dbuf, order, byte(0))
 	case KFUNC:
 		tosend := data.Data.(Function)
-		binary.Write(dbuf, order, int8(data.Type))
+		binary.Write(dbuf, order, data.Type)
 		binary.Write(dbuf, order, []byte(tosend.Namespace))
 		binary.Write(dbuf, order, byte(0))
 		err = writeData(dbuf, order, &K{KC, NONE, tosend.Body})
@@ -166,7 +155,7 @@ func Compress(b []byte) (dst []byte) {
 			f = 0
 		}
 
-		g = (s > t-3)
+		g = s > t-3
 		if !g {
 			h = int32(0xff & (b[s] ^ b[s+1]))
 			p = int(a[h])
