@@ -234,19 +234,19 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			return nil, errors.New("readData: Failed to read vecattr:" + err.Error())
+			return nil, errors.New("failed to read vector attr: " + err.Error())
 		}
 		var veclen uint32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			return nil, errors.New("Reading vector length failed -> " + err.Error())
+			return nil, errors.New("failed to read vector length: " + err.Error())
 		}
 		var arr interface{}
 		if msgtype >= KB && msgtype <= KT {
 			bytedata := make([]byte, int(veclen)*typeSize[msgtype])
 			_, err = io.ReadFull(r, bytedata)
 			if err != nil {
-				return nil, errors.New("Not enough data - " + err.Error())
+				return nil, errors.New("failed to read. not enough data: " + err.Error())
 			}
 			head := (*reflect.SliceHeader)(unsafe.Pointer(&bytedata))
 			head.Len = int(veclen)
@@ -257,7 +257,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			err = binary.Read(r, order, arr)
 		}
 		if err != nil {
-			return nil, errors.New("Error during conversion -> " + err.Error())
+			return nil, errors.New("error during conversion: " + err.Error())
 		}
 		if msgtype == KC {
 			return &K{msgtype, vecattr, string(arr.([]byte))}, nil
@@ -319,12 +319,12 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			return nil, errors.New("readData: Failed to read vecattr ->" + err.Error())
+			return nil, errors.New("failed to read vector attr: " + err.Error())
 		}
 		var veclen uint32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			return nil, errors.New("Reading vector length failed -> " + err.Error())
+			return nil, errors.New("failed to read vector length: " + err.Error())
 		}
 		var arr = make([]*K, veclen)
 		for i := 0; i < int(veclen); i++ {
@@ -339,12 +339,12 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			return nil, errors.New("readData: Failed to read vecattr ->" + err.Error())
+			return nil, errors.New("failed to read vector attr: " + err.Error())
 		}
 		var veclen uint32
 		err = binary.Read(r, order, &veclen)
 		if err != nil {
-			return nil, errors.New("Reading vector length failed -> " + err.Error())
+			return nil, errors.New("failed to read vector length: " + err.Error())
 		}
 		var arr = makeArray(msgtype, int(veclen)).([]string)
 		for i := 0; i < int(veclen); i++ {
@@ -369,7 +369,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			return nil, errors.New("readData: Failed to read vecattr" + err.Error())
+			return nil, errors.New("failed to read vector attr: " + err.Error())
 		}
 		d, err := readData(r, order)
 		if err != nil {
