@@ -6,7 +6,7 @@ import (
 	"github.com/sv/kdbgo"
 )
 
-func ExampleKDBConnCall() {
+func ExampleDialKDB() {
 	con, err := kdb.DialKDB("localhost", 1234, "")
 	if err != nil {
 		fmt.Println("Failed to connect:", err)
