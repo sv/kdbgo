@@ -76,6 +76,11 @@ const (
 	KERR int8 = -128
 )
 
+// The Qipc header follows the contract below
+// 0x00         - 1 Byte 	- Architecture used for encoding the message, BigEndian (0) or LittleEndian (1)
+// 0x00         - 1 Byte 	- Message type (0 - async, 1 - sync, 2 - response)
+// 0x0000       - 2 Bytes 	- Compressed & Reserved flag
+// 0x00000000   - 4 Bytes	- Message length
 type ipcHeader struct {
 	ByteOrder   byte
 	RequestType byte
