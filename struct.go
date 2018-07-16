@@ -208,6 +208,28 @@ func TimestampV(x []time.Time) *K {
 	return &K{Type: KP, Attr: NONE, Data: x}
 }
 
+func Date(x time.Time) *K {
+	return &K{Type: -KD, Attr: NONE, Data: x.UTC()}
+}
+
+func DateV(x []time.Time) *K {
+	for i, t := range x {
+		x[i] = t.UTC()
+	}
+	return &K{Type: KD, Attr: NONE, Data: x}
+}
+
+func Time(x time.Time) *K {
+	return &K{Type: -KT, Attr: NONE, Data: x.UTC()}
+}
+
+func TimeV(x []time.Time) *K {
+	for i, t := range x {
+		x[i] = t.UTC()
+	}
+	return &K{Type: KT, Attr: NONE, Data: x}
+}
+
 func Error(x error) *K {
 	return &K{Type: KERR, Attr: NONE, Data: x}
 }
@@ -330,8 +352,8 @@ func (m Month) String() string {
 type Minute time.Time
 
 func (m Minute) String() string {
-	time := time.Time(m)
-	return fmt.Sprintf("%02v:%02v", time.Hour(), time.Minute())
+	timeVal := time.Time(m)
+	return fmt.Sprintf("%02v:%02v", timeVal.Hour(), timeVal.Minute())
 
 }
 
@@ -339,16 +361,8 @@ func (m Minute) String() string {
 type Second time.Time
 
 func (s Second) String() string {
-	time := time.Time(s)
-	return fmt.Sprintf("%02v:%02v:%02v", time.Hour(), time.Minute(), time.Second())
-}
-
-// Time hh:mm:ss.SSS
-type Time time.Time
-
-func (t Time) String() string {
-	time := time.Time(t)
-	return fmt.Sprintf("%02v:%02v:%02v.%03v", time.Hour(), time.Minute(), time.Second(), int(time.Nanosecond()/1000000))
+	timeVal := time.Time(s)
+	return fmt.Sprintf("%02v:%02v:%02v", timeVal.Hour(), timeVal.Minute(), timeVal.Second())
 }
 
 // Table
