@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/nu7hatch/gouuid"
 	"math"
 	"reflect"
 	"time"
@@ -12,9 +13,9 @@ import (
 
 // Request type
 const (
-	ASYNC    int = 0
-	SYNC     int = 1
-	RESPONSE int = 2
+	ASYNC = iota
+	SYNC
+	RESPONSE
 )
 
 // Vector attributes
@@ -78,7 +79,7 @@ const (
 
 // The Qipc header follows the contract below
 // 0x00         - 1 Byte 	- Architecture used for encoding the message, BigEndian (0) or LittleEndian (1)
-// 0x00         - 1 Byte 	- Message type (0 - async, 1 - sync, 2 - response)
+// 0x00         - 1 Byte 	- Message type,  Async (0) or Sync (1) or response (2)
 // 0x0000       - 2 Bytes 	- Compressed & Reserved flag
 // 0x00000000   - 4 Bytes	- Message length
 type ipcHeader struct {
@@ -120,43 +121,111 @@ type K struct {
 	Data interface{}
 }
 
+func Bool(x bool) *K {
+	return &K{Type: -KB, Attr: NONE, Data: x}
+}
+
+func BoolV(x []bool) *K {
+	return &K{Type: KB, Attr: NONE, Data: x}
+}
+
+func UUID(x uuid.UUID) *K {
+	return &K{Type: -UU, Attr: NONE, Data: x}
+}
+
+func UUIDV(x []uuid.UUID) *K {
+	return &K{Type: UU, Attr: NONE, Data: x}
+}
+
+func Byte(x byte) *K {
+	return &K{Type: -KG, Attr: NONE, Data: x}
+}
+
+func ByteV(x []byte) *K {
+	return &K{Type: KG, Attr: NONE, Data: x}
+}
+
+func Short(x int16) *K {
+	return &K{Type: -KH, Attr: NONE, Data: x}
+}
+
+func ShortV(x []int16) *K {
+	return &K{Type: KH, Attr: NONE, Data: x}
+}
+
 func Int(x int32) *K {
-	return &K{-KI, NONE, x}
+	return &K{Type: -KI, Attr: NONE, Data: x}
+}
+
+func IntV(x []int32) *K {
+	return &K{Type: KI, Attr: NONE, Data: x}
 }
 
 func Long(x int64) *K {
-	return &K{-KJ, NONE, x}
+	return &K{Type: -KJ, Attr: NONE, Data: x}
+}
+
+func LongV(x []int64) *K {
+	return &K{Type: KJ, Attr: NONE, Data: x}
 }
 
 func Real(x float32) *K {
-	return &K{-KE, NONE, x}
+	return &K{Type: -KE, Attr: NONE, Data: x}
+}
+
+func RealV(x []float32) *K {
+	return &K{Type: KE, Attr: NONE, Data: x}
 }
 
 func Float(x float64) *K {
-	return &K{-KF, NONE, x}
+	return &K{Type: -KF, Attr: NONE, Data: x}
 }
 
-func Error(x error) *K {
-	return &K{KERR, NONE, x}
+func FloatV(x []float64) *K {
+	return &K{Type: KF, Attr: NONE, Data: x}
+}
+
+func String(x string) *K {
+	return &K{Type: KC, Attr: NONE, Data: x}
 }
 
 func Symbol(x string) *K {
-	return &K{-KS, NONE, x}
+	return &K{Type: -KS, Attr: NONE, Data: x}
 }
+
 func SymbolV(x []string) *K {
-	return &K{KS, NONE, x}
+	return &K{Type: KS, Attr: NONE, Data: x}
 }
 
-func Atom(t int8, x interface{}) *K {
-	return &K{t, NONE, x}
+func Timestamp(x time.Time) *K {
+	return &K{Type: -KP, Attr: NONE, Data: x.UTC()}
 }
 
-func NewList(x ...*K) *K {
-	return &K{K0, NONE, x}
+func TimestampV(x []time.Time) *K {
+	for i, t := range x {
+		x[i] = t.UTC()
+	}
+	return &K{Type: KP, Attr: NONE, Data: x}
+}
+
+func Error(x error) *K {
+	return &K{Type: KERR, Attr: NONE, Data: x}
+}
+
+func Enlist(x ...*K) *K {
+	return &K{Type: K0, Attr: NONE, Data: x}
+}
+
+func NewTable(cols []string, data ...*K) *K {
+	return &K{Type: XT, Attr: NONE, Data: Table{cols, data}}
+}
+
+func NewDict(k, v *K) *K {
+	return &K{Type: XD, Attr: NONE, Data: Dict{k, v}}
 }
 
 func NewFunc(ctx, body string) *K {
-	return &K{KFUNC, NONE, Function{Namespace: ctx, Body: body}}
+	return &K{Type: KFUNC, Attr: NONE, Data: Function{Namespace: ctx, Body: body}}
 }
 
 // Len returns number of elements in K structure
@@ -288,10 +357,6 @@ type Table struct {
 	Data    []*K
 }
 
-func NewTable(cols []string, data []*K) *K {
-	return &K{XT, NONE, Table{cols, data}}
-}
-
 func (tbl *Table) Index(i int) Dict {
 	var d = Dict{}
 	d.Key = &K{KS, NONE, tbl.Columns}
@@ -332,10 +397,6 @@ func (tbl Table) String() string {
 type Dict struct {
 	Key   *K
 	Value *K
-}
-
-func NewDict(k, v *K) *K {
-	return &K{XD, NONE, Dict{k, v}}
 }
 
 func (d Dict) String() string {
