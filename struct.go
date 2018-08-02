@@ -10,16 +10,20 @@ import (
 	"unicode"
 )
 
-// Request type
+// ReqType represents type of message sent or recieved via ipc
+type ReqType int8
+
+// Constants for recognised request types
 const (
-	ASYNC    int = 0
-	SYNC     int = 1
-	RESPONSE int = 2
+	ASYNC    ReqType = 0
+	SYNC             = 1
+	RESPONSE         = 2
 )
 
-// Vector attributes
+// Attr denotes attribute set on a non-scalar object
 type Attr int8
 
+// Constants for recognised attributes
 const (
 	NONE Attr = iota
 	SORTED
@@ -31,31 +35,31 @@ const (
 // Q type constants
 const (
 	K0 int8 = 0 // generic type
-	//      type bytes qtype     ctype  accessor
-	KB int8 = 1  // 1 boolean   char   kG
-	UU int8 = 2  // 16 guid     U      kU
-	KG int8 = 4  // 1 byte      char   kG
-	KH int8 = 5  // 2 short     short  kH
-	KI int8 = 6  // 4 int       int    kI
-	KJ int8 = 7  // 8 long      long   kJ
-	KE int8 = 8  // 4 real      float  kE
-	KF int8 = 9  // 8 float     double kF
-	KC int8 = 10 // 1 char      char   kC
-	KS int8 = 11 // * symbol    char*  kS
+	//      type bytes qtype     ctype
+	KB int8 = 1  // 1 boolean   char
+	UU int8 = 2  // 16 guid     U
+	KG int8 = 4  // 1 byte      char
+	KH int8 = 5  // 2 short     short
+	KI int8 = 6  // 4 int       int
+	KJ int8 = 7  // 8 long      long
+	KE int8 = 8  // 4 real      float
+	KF int8 = 9  // 8 float     double
+	KC int8 = 10 // 1 char      char
+	KS int8 = 11 // * symbol    char*
 
-	KP int8 = 12 // 8 timestamp long   kJ (nanoseconds from 2000.01.01)
-	KM int8 = 13 // 4 month     int    kI (months from 2000.01.01)
-	KD int8 = 14 // 4 date      int    kI (days from 2000.01.01)
-	KZ int8 = 15 // 8 datetime  double kF (DO NOT USE)
-	KN int8 = 16 // 8 timespan  long   kJ (nanoseconds)
-	KU int8 = 17 // 4 minute    int    kI
-	KV int8 = 18 // 4 second    int    kI
-	KT int8 = 19 // 4 time      int    kI (millisecond)
+	KP int8 = 12 // 8 timestamp long    nanoseconds from 2000.01.01
+	KM int8 = 13 // 4 month     int     months from 2000.01.01
+	KD int8 = 14 // 4 date      int     days from 2000.01.01
+	KZ int8 = 15 // 8 datetime  double  deprecated - DO NOT USE
+	KN int8 = 16 // 8 timespan  long    nanoseconds
+	KU int8 = 17 // 4 minute    int
+	KV int8 = 18 // 4 second    int
+	KT int8 = 19 // 4 time      int     millisecond
 
 	// table,dict
-	XT int8 = 98  //   x->k is XD
-	XD int8 = 99  //   kK(x)[0] is keys. kK(x)[1] is values.
-	SD int8 = 127 // sorted dict
+	XT int8 = 98  //   pointer to dictionary containing string keys(column names) and values
+	XD int8 = 99  //   2 element generic list with 0 as keys and 1 as values
+	SD int8 = 127 // 	 sorted dict - acts as a step function
 
 	// function types
 	KFUNC      int8 = 100
@@ -70,43 +74,43 @@ const (
 	KPRIOR     int8 = 109 // f':
 	KEACHRIGHT int8 = 110 // f/:
 	KEACHLEFT  int8 = 111 // f\:
-	KDYNLOAD   int8 = 112 // dynamic load
+	KDYNLOAD   int8 = 112 // dynamic loaded libraries - not available in IPC
 
 	// error type
-	KERR int8 = -128
+	KERR int8 = -128 // indicates error with 0 terminated string as a text
 )
 
 type ipcHeader struct {
 	ByteOrder   byte
-	RequestType byte
+	RequestType ReqType
 	Compressed  byte
 	Reserved    byte
 	MsgSize     uint32
 }
 
-// Short nil
+// Nh is a short nil
 const Nh int16 = math.MinInt16
 
-// Short infinity
+// Wh is a short infinity
 const Wh int16 = math.MaxInt16
 
-// Int nil
+// Ni is an int nil
 const Ni int32 = math.MinInt32
 
-// Int Infinity
+// Wi is an int infinity
 const Wi int32 = math.MaxInt32
 
-// Long nil
+// Nj is a long nil
 const Nj int64 = math.MinInt64
 
-// Long Infinity
+// Wj is a long infinity
 const Wj int64 = math.MaxInt64
 
-// Double nil
-var Nf float64 = math.NaN()
+// Nf is a double nil
+var Nf = math.NaN()
 
-// Double Infinity
-var Wf float64 = math.Inf(1)
+// Wf is a double infinity
+var Wf = math.Inf(1)
 
 // K structure
 type K struct {
@@ -115,64 +119,82 @@ type K struct {
 	Data interface{}
 }
 
+// Int wraps int32 as K
 func Int(x int32) *K {
 	return &K{-KI, NONE, x}
 }
 
+// IntV wraps int32 slice as K
 func IntV(x []int32) *K {
 	return &K{KI, NONE, x}
 }
 
+// Long wraps int64 as K
 func Long(x int64) *K {
 	return &K{-KJ, NONE, x}
 }
 
+// LongV wraps int64 slice as K
 func LongV(x []int64) *K {
 	return &K{KJ, NONE, x}
 }
 
+// Real wraps float32 as K
 func Real(x float32) *K {
 	return &K{-KE, NONE, x}
 }
 
+// RealV wraps float32 slice as K
 func RealV(x []float32) *K {
 	return &K{KE, NONE, x}
 }
 
+// Float wraps float64 as K
 func Float(x float64) *K {
 	return &K{-KF, NONE, x}
 }
 
+// FloatV wraps float64 as K
 func FloatV(x []float64) *K {
 	return &K{KF, NONE, x}
 }
 
+// Error constructs K error object from Go error
 func Error(x error) *K {
 	return &K{KERR, NONE, x}
 }
 
+// Symbol wraps string as K
 func Symbol(x string) *K {
 	return &K{-KS, NONE, x}
 }
+
+// SymbolV wraps string slice as K
 func SymbolV(x []string) *K {
 	return &K{KS, NONE, x}
 }
 
+// Date wraps time.Time as K
 func Date(x time.Time) *K {
 	return &K{-KD, NONE, x}
 }
+
+// DateV wraps time.Time slice as K
 func DateV(x []time.Time) *K {
 	return &K{KD, NONE, x}
 }
 
+// Atom constructs generic K atom with given type
 func Atom(t int8, x interface{}) *K {
 	return &K{t, NONE, x}
 }
 
+// NewList constructs generic list(type 0) from list of K arguments
 func NewList(x ...*K) *K {
 	return &K{K0, NONE, x}
 }
 
+// NewFunc creates K function with body in ctx namespace
 func NewFunc(ctx, body string) *K {
 	return &K{KFUNC, NONE, Function{Namespace: ctx, Body: body}}
 }
@@ -223,7 +245,7 @@ func (k *K) Index(i int) interface{} {
 
 var attrPrint = map[Attr]string{NONE: "", SORTED: "`s#", UNIQUE: "`u#", PARTED: "`p#", GROUPED: "`g#"}
 
-// Convert K structure to string
+// String converts K structure to string
 func (k K) String() string {
 	if k.Type < K0 {
 		return fmt.Sprint(k.Data)
@@ -256,26 +278,26 @@ func (k K) String() string {
 	}
 }
 
-// Message is malformated or invalid
+// ErrBadMsg to indicate malformed or invalid message
 var ErrBadMsg = errors.New("Bad Message")
 
-// Message header is invalid
+// ErrBadHeader to indicate invalid header
 var ErrBadHeader = errors.New("Bad header")
 
-// Cannot process sync requests
+// ErrSyncRequest cannot process sync requests
 var ErrSyncRequest = errors.New("nosyncrequest")
 
 // Epoch offset for Q time. Q epoch starts on 1st Jan 2000
 var qEpoch = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
 
-// Month
+// Month represents a month type in kdb
 type Month int32
 
 func (m Month) String() string {
 	return fmt.Sprintf("%v.%02vm", 2000+int(m/12), int(m)%12)
 }
 
-// Minute
+// Minute represents a minute type in kdb
 type Minute time.Time
 
 func (m Minute) String() string {
@@ -284,7 +306,7 @@ func (m Minute) String() string {
 
 }
 
-// Second hh:mm:ss
+// Second represents a second type in kdb - hh:mm:ss
 type Second time.Time
 
 func (s Second) String() string {
@@ -292,7 +314,7 @@ func (s Second) String() string {
 	return fmt.Sprintf("%02v:%02v:%02v", time.Hour(), time.Minute(), time.Second())
 }
 
-// Time hh:mm:ss.SSS
+// Time represents time type in kdb - hh:mm:ss.SSS
 type Time time.Time
 
 func (t Time) String() string {
@@ -300,16 +322,18 @@ func (t Time) String() string {
 	return fmt.Sprintf("%02v:%02v:%02v.%03v", time.Hour(), time.Minute(), time.Second(), int(time.Nanosecond()/1000000))
 }
 
-// Table
+// Table represents table type in kdb
 type Table struct {
 	Columns []string
 	Data    []*K
 }
 
+// NewTable constructs table with cols as header and data as values
 func NewTable(cols []string, data []*K) *K {
 	return &K{XT, NONE, Table{cols, data}}
 }
 
+// Index returns i'th row of the table
 func (tbl *Table) Index(i int) Dict {
 	var d = Dict{}
 	d.Key = &K{KS, NONE, tbl.Columns}
@@ -328,6 +352,7 @@ func (tbl *Table) Index(i int) Dict {
 	return d
 }
 
+// String prints table
 func (tbl Table) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("+")
@@ -345,22 +370,24 @@ func (tbl Table) String() string {
 
 }
 
-// Dictionary: ordered key->value mapping.
+// Dict represents ordered key->value mapping.
 // Key and Value must be slices of the same length
 type Dict struct {
 	Key   *K
 	Value *K
 }
 
+// NewDict constructs K dict from k,v slices.
 func NewDict(k, v *K) *K {
 	return &K{XD, NONE, Dict{k, v}}
 }
 
+// String
 func (d Dict) String() string {
 	return fmt.Sprintf("%v!%v", d.Key.Data, d.Value.Data)
 }
 
-// utility function to titlecase first letter of the string
+// titleInitial is utility function to titlecase first letter of the string
 func titleInitial(str string) string {
 	for i, v := range str {
 		return string(unicode.ToTitle(v)) + str[i+1:]
@@ -368,7 +395,7 @@ func titleInitial(str string) string {
 	return ""
 }
 
-// Unmarshall dict to struct
+// UnmarshalDict decodes dict to a struct
 func UnmarshalDict(t Dict, v interface{}) error {
 	var keys = t.Key.Data.([]string)
 	var vals = t.Value.Data.([]*K)
@@ -390,7 +417,7 @@ func UnmarshalDict(t Dict, v interface{}) error {
 	return nil
 }
 
-// Unmarshall dict to map[string]{}interface
+// UnmarshalDictToMap decodes dict into map[string]{}interface
 func UnmarshalDictToMap(t Dict, v interface{}) error {
 	vv := reflect.ValueOf(v)
 	if vv.Kind() == reflect.Map {
@@ -423,6 +450,7 @@ func UnmarshalDictToMap(t Dict, v interface{}) error {
 	return nil
 }
 
+// UnmarshalTable decodes table to array of structs
 func UnmarshalTable(t Table, v interface{}) (interface{}, error) {
 	vv := reflect.ValueOf(v)
 	if vv.Kind() != reflect.Ptr || vv.IsNil() {
@@ -441,7 +469,7 @@ func UnmarshalTable(t Table, v interface{}) (interface{}, error) {
 	return vv.Interface(), nil
 }
 
-// Function
+// Function represents function in kdb+
 type Function struct {
 	Namespace string
 	Body      string

@@ -66,7 +66,7 @@ func HandleClientConnection(conn net.Conn) {
 	}
 }
 
-// Make synchronous call to kdb+ similar to h(func;arg1;arg2;...)
+// Call performs synchronous call to kdb+ similar to h(func;arg1;arg2;...)
 func (c *KDBConn) Call(cmd string, args ...*K) (data *K, err error) {
 	if !c.ok() {
 		return nil, errors.New("Closed connection")
@@ -86,7 +86,7 @@ func (c *KDBConn) Call(cmd string, args ...*K) (data *K, err error) {
 	return data, err
 }
 
-// Make asynchronous call to kdb+
+// AsyncCall performs asynchronous call to kdb+
 func (c *KDBConn) AsyncCall(cmd string, args ...*K) (err error) {
 	if !c.ok() {
 		return errors.New("Closed connection")
@@ -101,22 +101,22 @@ func (c *KDBConn) AsyncCall(cmd string, args ...*K) (err error) {
 	return Encode(c.con, ASYNC, sending)
 }
 
-// Send response to asynchronous call
+// Response sends response to asynchronous call
 func (c *KDBConn) Response(data *K) (err error) {
 	return Encode(c.con, RESPONSE, data)
 }
 
-// Read complete message from connection
-func (c *KDBConn) ReadMessage() (data *K, msgtype int, e error) {
+// ReadMessage reads complete message from connection
+func (c *KDBConn) ReadMessage() (data *K, msgtype ReqType, e error) {
 	return Decode(c.rbuf)
 }
 
-// Send data in Q IPC format
-func (c *KDBConn) WriteMessage(msgtype int, data *K) (err error) {
+// WriteMessage sends data in Q IPC format
+func (c *KDBConn) WriteMessage(msgtype ReqType, data *K) (err error) {
 	return Encode(c.con, msgtype, data)
 }
 
-// Connect to host:port using supplied user:password. Wait until connected
+// DialKDB connects to host:port using supplied user:password. Wait until connected
 func DialKDB(host string, port int, auth string) (*KDBConn, error) {
 	var timeout time.Duration
 	return DialKDBTimeout(host, port, auth, timeout)
@@ -147,7 +147,7 @@ func kdbHandshake(c net.Conn, auth string) error {
 	return nil
 }
 
-// Connect to host:port using TLS with cfg provided
+// DialTLS connects to host:port using TLS with cfg provided
 func DialTLS(host string, port int, auth string, cfg *tls.Config) (*KDBConn, error) {
 	c, err := tls.Dial("tcp", host+":"+fmt.Sprint(port), cfg)
 	if err != nil {
@@ -161,7 +161,7 @@ func DialTLS(host string, port int, auth string, cfg *tls.Config) (*KDBConn, err
 	return &kdbconn, nil
 }
 
-// Connect to port using unix domain sockets. host parameter is ignored.
+// DialUnix connects to port using unix domain sockets. host parameter is ignored.
 func DialUnix(host string, port int, auth string) (*KDBConn, error) {
 	c, err := net.Dial("unix", "/tmp/kx."+fmt.Sprint(port))
 	if err != nil {
@@ -175,7 +175,7 @@ func DialUnix(host string, port int, auth string) (*KDBConn, error) {
 	return &kdbconn, nil
 }
 
-// Connect to host:port using supplied user:password. Wait timeout for connection
+// DialKDBTimeout connects to host:port using supplied user:password. Wait timeout for connection
 func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (*KDBConn, error) {
 	conn, err := net.Dial("tcp", host+":"+fmt.Sprint(port))
 	if err != nil {

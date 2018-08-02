@@ -81,7 +81,7 @@ func (h *ipcHeader) ok() bool {
 	return h.ByteOrder == 0x01 && h.RequestType < 3 && h.Compressed < 0x02 && h.MsgSize > 9
 }
 
-// Ucompress byte array compressed with Q IPC compression
+// Uncompress byte array compressed with Q IPC compression
 func Uncompress(b []byte) (dst []byte) {
 	if len(b) < 4+1 {
 		return b
@@ -135,8 +135,8 @@ func Uncompress(b []byte) (dst []byte) {
 	return dst
 }
 
-// Decodes data from src in q ipc format.
-func Decode(src *bufio.Reader) (data *K, msgtype int, e error) {
+// Decode deserialises data from src in q ipc format.
+func Decode(src *bufio.Reader) (data *K, msgtype ReqType, e error) {
 	var header ipcHeader
 	e = binary.Read(src, binary.LittleEndian, &header)
 	if e != nil {
@@ -153,15 +153,15 @@ func Decode(src *bufio.Reader) (data *K, msgtype int, e error) {
 		compressed := make([]byte, header.MsgSize-8)
 		_, e = io.ReadFull(src, compressed)
 		if e != nil {
-			return nil, int(header.RequestType), errors.New("Decode:readcompressed error - " + e.Error())
+			return nil, header.RequestType, errors.New("Decode:readcompressed error - " + e.Error())
 		}
 		var uncompressed = Uncompress(compressed)
 		var buf = bufio.NewReader(bytes.NewReader(uncompressed[8:]))
 		data, e = readData(buf, order)
-		return data, int(header.RequestType), e
+		return data, header.RequestType, e
 	}
 	data, e = readData(src, order)
-	return data, int(header.RequestType), e
+	return data, header.RequestType, e
 }
 
 func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {

@@ -206,7 +206,7 @@ func Compress(b []byte) (dst []byte) {
 }
 
 // Encode data to ipc format as msgtype(sync/async/response) to specified writer
-func Encode(w io.Writer, msgtype int, data *K) (err error) {
+func Encode(w io.Writer, msgtype ReqType, data *K) (err error) {
 	var order = binary.LittleEndian
 	dbuf := new(bytes.Buffer)
 	err = writeData(dbuf, order, data)
@@ -214,7 +214,7 @@ func Encode(w io.Writer, msgtype int, data *K) (err error) {
 		return err
 	}
 	msglen := uint32(8 + dbuf.Len())
-	var header = ipcHeader{1, byte(msgtype), 0, 0, msglen}
+	var header = ipcHeader{1, msgtype, 0, 0, msglen}
 	buf := new(bytes.Buffer)
 	err = binary.Write(buf, order, header)
 	err = binary.Write(buf, order, dbuf.Bytes())
