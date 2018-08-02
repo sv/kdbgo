@@ -20,6 +20,7 @@ var encodingTests = []struct {
 	{"enlist 1i", &K{KI, NONE, []int32{1}}, IntVectorBytes},
 	{"`byte$til 5", &K{KG, NONE, []byte{0, 1, 2, 3, 4}}, ByteVectorBytes},
 	{"\"GOOG\"", &K{KC, NONE, "GOOG"}, CharArrayBytes},
+	{"`GOOG", &K{-KS, NONE, "GOOG"}, SymbolBytes},
 	{"`abc`bc`c", SymbolV([]string{"abc", "bc", "c"}), SymbolVectorBytes},
 	{"`a`b!2 3", NewDict(SymbolV([]string{"a", "b"}), &K{KI, NONE, []int32{2, 3}}), DictWithAtomsBytes},
 	{"{x+y} in .d", NewFunc("d", "{x+y}"), FuncNonRootBytes},
@@ -44,9 +45,15 @@ var encodingTests = []struct {
 	{"2#2018.01.26D01:49:00.884361000", &K{KP, NONE, []time.Time{TimestampAsTime, TimestampAsTime}}, TimestampVectorAsBytes},
 	{"8c6b8b64-6815-6084-0a3e-178401251b68", &K{-UU, NONE, uuid.UUID{0x8c, 0x6b, 0x8b, 0x64, 0x68, 0x15, 0x60, 0x84, 0x0a, 0x3e, 0x17, 0x84, 0x01, 0x25, 0x1b, 0x68}}, GUIDBytes},
 	{"0x0 sv/: 16 cut `byte$til 32", &K{UU, NONE, []uuid.UUID{{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}, {0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f}}}, GUIDVecBytes},
+	{"0D01:22:33.444555666*1+til 2", &K{KN, NONE, []time.Duration{}}, TimespanVecBytes},
+	{"`s#`a`b!2 3", &K{XD, SORTED, Dict{&K{KS, SORTED, []string{"a", "b"}}, &K{KI, NONE, []int32{2, 3}}}}, SortedDictBytes},
+	{"`s#([]a:enlist 2;b:enlist 3)", &K{XT, SORTED, NewTable([]string{"a", "b"}, []*K{{KI, NONE, []int32{2}}, {KI, NONE, []int32{3}}})}, SortedTableBytes},
 }
 
 func TestEncoding(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	for _, tt := range encodingTests {
 		// fmt.Println(tt.desc)
 		buf := new(bytes.Buffer)
@@ -57,6 +64,21 @@ func TestEncoding(t *testing.T) {
 		}
 		if !bytes.Equal(buf.Bytes(), tt.expected) {
 			t.Errorf("Encoded '%s' incorrectly. Expected '%v', got '%v'\n", tt.desc, tt.expected, buf.Bytes())
+		}
+	}
+}
+
+func BenchmarkEncodeAll(b *testing.B) {
+	buf := new(bytes.Buffer)
+
+	for i := 0; i < b.N; i++ {
+		for _, tt := range encodingTests {
+			buf.Reset()
+			err := Encode(buf, ASYNC, tt.input)
+			if err != nil {
+				b.Errorf("Encoding '%s' failed:%s", tt.desc, err)
+				continue
+			}
 		}
 	}
 }
