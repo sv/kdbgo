@@ -243,7 +243,7 @@ func (k *K) Index(i int) interface{} {
 	return &K{XD, NONE, t.Index(i)}
 }
 
-var attrPrint = map[Attr]string{NONE: "", SORTED: "`s#", UNIQUE: "`u#", PARTED: "`p#", GROUPED: "`g#"}
+var attrPrint = []string{NONE: "", SORTED: "`s#", UNIQUE: "`u#", PARTED: "`p#", GROUPED: "`g#"}
 
 // String converts K structure to string
 func (k K) String() string {
@@ -319,7 +319,7 @@ type Time time.Time
 
 func (t Time) String() string {
 	time := time.Time(t)
-	return fmt.Sprintf("%02v:%02v:%02v.%03v", time.Hour(), time.Minute(), time.Second(), int(time.Nanosecond()/1000000))
+	return fmt.Sprintf("%02v:%02v:%02v.%03v", time.Hour(), time.Minute(), time.Second(), time.Nanosecond()/1000000)
 }
 
 // Table represents table type in kdb
@@ -457,7 +457,7 @@ func UnmarshalTable(t Table, v interface{}) (interface{}, error) {
 		return nil, errors.New("Invalid target type. Shoult be non null pointer")
 	}
 	vv = reflect.Indirect(vv)
-	for i := 0; i < int(t.Data[0].Len()); i++ {
+	for i := 0; i < t.Data[0].Len(); i++ {
 		emptyelem := reflect.New(vv.Type().Elem())
 		err := UnmarshalDict(t.Index(i), emptyelem.Interface())
 		if err != nil {

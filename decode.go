@@ -13,14 +13,14 @@ import (
 	"github.com/nu7hatch/gouuid"
 )
 
-var typeSize = map[int8]int{
+var typeSize = []int{
 	1: 1, 4: 1, 10: 1,
 	2: 16,
 	5: 2,
 	6: 4, 8: 4, 13: 4, 14: 4, 17: 4, 18: 4, 19: 4,
 	7: 8, 9: 8, 12: 8, 15: 8, 16: 8}
 
-var typeReflect = map[int8]reflect.Type{
+var typeReflect = []reflect.Type{
 	1:  reflect.TypeOf([]bool{}),
 	2:  reflect.TypeOf([]uuid.UUID{}),
 	4:  reflect.TypeOf([]byte{}),
@@ -87,7 +87,7 @@ func Uncompress(b []byte) (dst []byte) {
 		return b
 	}
 	n, r, f, s := int32(0), int32(0), int32(0), int32(8)
-	p := int32(s)
+	p := s
 	i := int16(0)
 	var usize int32
 	binary.Read(bytes.NewReader(b[0:4]), binary.LittleEndian, &usize)
@@ -181,7 +181,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		binary.Read(r, order, &u)
 		return &K{msgtype, NONE, u}, nil
 
-	case -KG:
+	case -KG, -KC:
 		var b byte
 		binary.Read(r, order, &b)
 		return &K{msgtype, NONE, b}, nil
@@ -206,10 +206,6 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var f float64
 		binary.Read(r, order, &f)
 		return &K{msgtype, NONE, f}, nil
-	case -KC:
-		var c byte
-		binary.Read(r, order, &c)
-		return &K{msgtype, NONE, c}, nil // should be rune?
 	case -KS:
 		line, err := r.ReadBytes(0)
 		if err != nil {
@@ -364,7 +360,11 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewDict(dk, dv), nil
+		res := NewDict(dk, dv)
+		if msgtype == SD {
+			res.Attr = SORTED
+		}
+		return res, nil
 	case XT:
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
