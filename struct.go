@@ -243,7 +243,12 @@ func (k *K) Index(i int) interface{} {
 	return &K{XD, NONE, t.Index(i)}
 }
 
+//https://github.com/CharlesSkelton/studio/blob/master/src/studio/kdb/K.java
 var attrPrint = []string{NONE: "", SORTED: "`s#", UNIQUE: "`u#", PARTED: "`p#", GROUPED: "`g#"}
+var unaryops = []string{"::", "+:", "-:", "*:", "%:", "&:", "|:", "^:", "=:", "<:", ">:", "$:", ",:", "#:", "_:", "~:", "!:", "?:", "@:", ".:", "0::", "1::", "2::", "avg", "last", "sum", "prd", "min", "max", "exit", "getenv", "abs", "sqrt", "log", "exp", "sin", "asin", "cos", "acos", "tan", "atan", "enlist", 255: ""}
+var binaryops = []string{":", "+", "-", "*", "%", "&", "|", "^", "=", "<", ">", "$", ",", "#", "_", "~", "!", "?", "@", ".", "0:", "1:", "2:", "in", "within", "like", "bin", "ss", "insert", "wsum", "wavg", "div", "xexp", "setenv"}
+var ternaryops = []string{"'", "/", "\\"}
+var adverbs = []string{106: "'", 107: "/", 108: "\\", 109: "':", 110: "/:", 111: "\\:"}
 
 // String converts K structure to string
 func (k K) String() string {
@@ -273,6 +278,21 @@ func (k K) String() string {
 		return attrPrint[k.Attr] + k.Data.(Table).String()
 	case KFUNC:
 		return k.Data.(Function).Body
+	case KFUNCUP:
+		return unaryops[k.Data.(byte)]
+	case KFUNCBP:
+		return binaryops[k.Data.(byte)]
+	case KFUNCTR:
+		return ternaryops[k.Data.(byte)]
+	case KPROJ, KCOMP:
+		list := k.Data.([]*K)
+		var buf bytes.Buffer
+		for _, l := range list {
+			buf.WriteString(l.String())
+		}
+		return buf.String()
+	case KEACH, KOVER, KSCAN, KPRIOR, KEACHRIGHT, KEACHLEFT:
+		return k.Data.(*K).String() + adverbs[k.Type]
 	default:
 		return "unknown"
 	}
