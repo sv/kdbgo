@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"runtime"
 	"time"
 )
 
@@ -163,16 +164,33 @@ func DialTLS(host string, port int, auth string, cfg *tls.Config) (*KDBConn, err
 
 // Connect to port using unix domain sockets. host parameter is ignored.
 func DialUnix(host string, port int, auth string) (*KDBConn, error) {
-	c, err := net.Dial("unix", "/tmp/kx."+fmt.Sprint(port))
+	var (
+		c   net.Conn
+		err error
+	)
+
+	if runtime.GOOS == "linux" {
+		c, err = net.Dial("unix", fmt.Sprintf("@/tmp/kx.%d", port))
+	} else if runtime.GOOS == "darwin" {
+		c, err = net.Dial("unix", fmt.Sprintf("/tmp/kx.%d", port))
+	} else {
+		return nil, net.UnknownNetworkError("unix")
+	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	err = kdbHandshake(c, auth)
 	if err != nil {
 		return nil, err
 	}
-	kdbconn := KDBConn{c, bufio.NewReader(c), "", string(port), auth}
-	return &kdbconn, nil
+	return &KDBConn{
+		con:     c,
+		rbuf:    bufio.NewReader(c),
+		Port:    string(port),
+		userpwd: auth,
+	}, nil
 }
 
 // Connect to host:port using supplied user:password. Wait timeout for connection
