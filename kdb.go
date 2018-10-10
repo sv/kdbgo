@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"runtime"
 	"time"
@@ -38,8 +37,12 @@ func (c *KDBConn) ok() bool {
 	return c.con != nil
 }
 
-// process clients requests
-func HandleClientConnection(conn net.Conn) {
+func (c *KDBConn) Conn() net.Conn {
+	return c.con
+}
+
+// Previous listen handler, kept for posterity
+/*func HandleClientConnection(conn net.Conn) {
 	c := conn.(*net.TCPConn)
 	c.SetKeepAlive(true)
 	c.SetNoDelay(true)
@@ -65,7 +68,7 @@ func HandleClientConnection(conn net.Conn) {
 		// don't respond
 		i++
 	}
-}
+}*/
 
 // Make synchronous call to kdb+ similar to h(func;arg1;arg2;...)
 func (c *KDBConn) Call(cmd string, args ...*K) (data *K, err error) {

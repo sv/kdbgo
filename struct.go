@@ -119,16 +119,32 @@ func Int(x int32) *K {
 	return &K{-KI, NONE, x}
 }
 
+func IntV(x []int32) *K {
+	return &K{KI, NONE, x}
+}
+
 func Long(x int64) *K {
 	return &K{-KJ, NONE, x}
+}
+
+func LongV(x []int64) *K {
+	return &K{KJ, NONE, x}
 }
 
 func Real(x float32) *K {
 	return &K{-KE, NONE, x}
 }
 
+func RealV(x []float32) *K {
+	return &K{KE, NONE, x}
+}
+
 func Float(x float64) *K {
 	return &K{-KF, NONE, x}
+}
+
+func FloatV(x []float64) *K {
+	return &K{KF, NONE, x}
 }
 
 func Error(x error) *K {
@@ -140,6 +156,13 @@ func Symbol(x string) *K {
 }
 func SymbolV(x []string) *K {
 	return &K{KS, NONE, x}
+}
+
+func Date(x time.Time) *K {
+	return &K{-KD, NONE, x}
+}
+func DateV(x []time.Time) *K {
+	return &K{KD, NONE, x}
 }
 
 func Atom(t int8, x interface{}) *K {
