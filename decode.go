@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"time"
@@ -140,10 +141,10 @@ func Decode(src *bufio.Reader) (data *K, msgtype ReqType, e error) {
 	var header ipcHeader
 	e = binary.Read(src, binary.LittleEndian, &header)
 	if e != nil {
-		return nil, -1, errors.New("Failed to read message header:" + e.Error())
+		return nil, -1, fmt.Errorf("kdb decode: failed to read message header: %s", e.Error())
 	}
 	if !header.ok() {
-		return nil, -1, errors.New("header is invalid")
+		return nil, -1, fmt.Errorf("kdb decode: header is invalid")
 	}
 	// try to buffer entire message in one go
 	src.Peek(int(header.MsgSize - 8))
@@ -153,7 +154,7 @@ func Decode(src *bufio.Reader) (data *K, msgtype ReqType, e error) {
 		compressed := make([]byte, header.MsgSize-8)
 		_, e = io.ReadFull(src, compressed)
 		if e != nil {
-			return nil, header.RequestType, errors.New("Decode:readcompressed error - " + e.Error())
+			return nil, header.RequestType, fmt.Errorf("kdb decode: failed to read compressed bytes: %s", e.Error())
 		}
 		var uncompressed = Uncompress(compressed)
 		var buf = bufio.NewReader(bytes.NewReader(uncompressed[8:]))
@@ -228,21 +229,21 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		return &K{msgtype, NONE, span}, nil
 	case KB, UU, KG, KH, KI, KJ, KE, KF, KC, KP, KM, KD, KN, KU, KV, KT, KZ:
 		var vecattr Attr
-		err = binary.Read(r, order, &vecattr)
-		if err != nil {
-			return nil, errors.New("readData: Failed to read vecattr:" + err.Error())
+		if err := binary.Read(r, order, &vecattr); err != nil {
+			return nil, fmt.Errorf("kdb decode: failed to read vector attr: %s", err.Error())
 		}
+
 		var veclen uint32
-		err = binary.Read(r, order, &veclen)
-		if err != nil {
-			return nil, errors.New("Reading vector length failed -> " + err.Error())
+		if err := binary.Read(r, order, &veclen); err != nil {
+			return nil, fmt.Errorf("kdb decode: failed to read vector length: %s", err.Error())
 		}
+
 		var arr interface{}
 		if msgtype >= KB && msgtype <= KT {
 			bytedata := make([]byte, int(veclen)*typeSize[msgtype])
 			_, err = io.ReadFull(r, bytedata)
 			if err != nil {
-				return nil, errors.New("Not enough data - " + err.Error())
+				return nil, fmt.Errorf("kdb decode: not enough data: %s", err.Error())
 			}
 			head := (*reflect.SliceHeader)(unsafe.Pointer(&bytedata))
 			head.Len = int(veclen)
@@ -253,7 +254,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			err = binary.Read(r, order, arr)
 		}
 		if err != nil {
-			return nil, errors.New("Error during conversion -> " + err.Error())
+			return nil, fmt.Errorf("kdb decode: failed to convert: %s", err.Error())
 		}
 		if msgtype == KC {
 			return &K{msgtype, vecattr, string(arr.([]byte))}, nil
@@ -313,15 +314,15 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		return &K{msgtype, vecattr, arr}, nil
 	case K0:
 		var vecattr Attr
-		err = binary.Read(r, order, &vecattr)
-		if err != nil {
-			return nil, errors.New("readData: Failed to read vecattr ->" + err.Error())
+		if err := binary.Read(r, order, &vecattr); err != nil {
+			return nil, fmt.Errorf("kdb decode: failed to read vector attr: %s", err.Error())
 		}
+
 		var veclen uint32
-		err = binary.Read(r, order, &veclen)
-		if err != nil {
-			return nil, errors.New("Reading vector length failed -> " + err.Error())
+		if err := binary.Read(r, order, &veclen); err != nil {
+			return nil, fmt.Errorf("kdb decode: failed to read vector length: %s", err.Error())
 		}
+
 		var arr = make([]*K, veclen)
 		for i := 0; i < int(veclen); i++ {
 			v, err := readData(r, order)
@@ -333,15 +334,15 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		return &K{msgtype, vecattr, arr}, nil
 	case KS:
 		var vecattr Attr
-		err = binary.Read(r, order, &vecattr)
-		if err != nil {
-			return nil, errors.New("readData: Failed to read vecattr ->" + err.Error())
+		if err := binary.Read(r, order, &vecattr); err != nil {
+			return nil, fmt.Errorf("kdb decode: failed to read vector attr: %s", err.Error())
 		}
+
 		var veclen uint32
-		err = binary.Read(r, order, &veclen)
-		if err != nil {
-			return nil, errors.New("Reading vector length failed -> " + err.Error())
+		if err := binary.Read(r, order, &veclen); err != nil {
+			return nil, fmt.Errorf("kdb decode: failed to read vector length: %s", err.Error())
 		}
+
 		var arr = makeArray(msgtype, int(veclen)).([]string)
 		for i := 0; i < int(veclen); i++ {
 			line, err := r.ReadSlice(0)
@@ -369,14 +370,14 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
 		if err != nil {
-			return nil, errors.New("readData: Failed to read vecattr" + err.Error())
+			return nil, fmt.Errorf("kdb decode: failed to read vector attr: %s", err.Error())
 		}
 		d, err := readData(r, order)
 		if err != nil {
 			return nil, err
 		}
 		if d.Type != XD {
-			return nil, errors.New("expected dict")
+			return nil, fmt.Errorf("kdb decode: expected type (%d) but was (%d)", XD, d.Type)
 		}
 		dict := d.Data.(Dict)
 		colNames := dict.Key.Data.([]string)
@@ -395,7 +396,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			return nil, err
 		}
 		if b.Type != KC {
-			return nil, errors.New("expected string")
+			return nil, fmt.Errorf("kdb decode: expected type (%d) but was (%d)", KC, b.Type)
 		}
 		f.Body = b.Data.(string)
 		return &K{msgtype, NONE, f}, nil
@@ -424,7 +425,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		return readData(r, order)
 	case KDYNLOAD:
 		// 112 - dynamic load
-		return nil, errors.New("type is unsupported")
+		return nil, fmt.Errorf("kdb decode: type (%d) is unsupported", KDYNLOAD)
 	case KERR:
 		line, err := r.ReadSlice(0)
 		if err != nil {
