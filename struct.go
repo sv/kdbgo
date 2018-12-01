@@ -8,9 +8,11 @@ import (
 	"reflect"
 	"time"
 	"unicode"
+
+	"github.com/nu7hatch/gouuid"
 )
 
-// ReqType represents type of message sent or recieved via ipc
+// ReqType represents type of message sent or received via ipc
 type ReqType int8
 
 // Constants for recognised request types
@@ -80,6 +82,11 @@ const (
 	KERR int8 = -128 // indicates error with 0 terminated string as a text
 )
 
+// The Qipc header follows the contract below
+// 0x00         - 1 Byte 	- Architecture used for encoding the message, BigEndian (0) or LittleEndian (1)
+// 0x00         - 1 Byte 	- Message type,  Async (0) or Sync (1) or response (2)
+// 0x0000       - 2 Bytes 	- Compressed & Reserved flag
+// 0x00000000   - 4 Bytes	- Message length
 type ipcHeader struct {
 	ByteOrder   byte
 	RequestType ReqType
@@ -117,6 +124,46 @@ type K struct {
 	Type int8
 	Attr Attr
 	Data interface{}
+}
+
+// Bool wraps bool as K
+func Bool(x bool) *K {
+	return &K{-KB, NONE, x}
+}
+
+// BoolV wraps bool slice as K
+func BoolV(x []bool) *K {
+	return &K{KB, NONE, x}
+}
+
+// UUID wraps UUID as K
+func UUID(x uuid.UUID) *K {
+	return &K{-UU, NONE, x}
+}
+
+// UUIDV wraps UUID slice as K
+func UUIDV(x []uuid.UUID) *K {
+	return &K{UU, NONE, x}
+}
+
+// Byte wraps byte as K
+func Byte(x byte) *K {
+	return &K{-KG, NONE, x}
+}
+
+// ByteV wraps byte slice as K
+func ByteV(x []byte) *K {
+	return &K{KG, NONE, x}
+}
+
+// Short wraps int16 as K
+func Short(x int16) *K {
+	return &K{-KH, NONE, x}
+}
+
+// ShortV wraps int16 slice as K
+func ShortV(x []int16) *K {
+	return &K{KH, NONE, x}
 }
 
 // Int wraps int32 as K
@@ -159,9 +206,9 @@ func FloatV(x []float64) *K {
 	return &K{KF, NONE, x}
 }
 
-// Error constructs K error object from Go error
-func Error(x error) *K {
-	return &K{KERR, NONE, x}
+// String wraps string as K
+func String(x string) *K {
+	return &K{KC, NONE, x}
 }
 
 // Symbol wraps string as K
@@ -174,19 +221,43 @@ func SymbolV(x []string) *K {
 	return &K{KS, NONE, x}
 }
 
+// Timestamp wraps time.Time as K
+func Timestamp(x time.Time) *K {
+	return &K{-KP, NONE, x.UTC()}
+}
+
+// TimestampV wraps time.Time slice as K
+func TimestampV(x []time.Time) *K {
+	for i, t := range x {
+		x[i] = t.UTC()
+	}
+	return &K{KP, NONE, x}
+}
+
 // Date wraps time.Time as K
 func Date(x time.Time) *K {
-	return &K{-KD, NONE, x}
+	return &K{-KD, NONE, x.UTC()}
 }
 
 // DateV wraps time.Time slice as K
 func DateV(x []time.Time) *K {
+	for i, t := range x {
+		x[i] = t.UTC()
+	}
 	return &K{KD, NONE, x}
 }
 
-// Atom constructs generic K atom with given type
-func Atom(t int8, x interface{}) *K {
-	return &K{t, NONE, x}
+// Time wraps time.Time as K
+func Time(x time.Time) *K {
+	return &K{-KT, NONE, x.UTC()}
+}
+
+// TimeV wraps time.Time slice as K
+func TimeV(x []time.Time) *K {
+	for i, t := range x {
+		x[i] = t.UTC()
+	}
+	return &K{KT, NONE, x}
 }
 
 // NewList constructs generic list(type 0) from list of K arguments
@@ -194,9 +265,24 @@ func NewList(x ...*K) *K {
 	return &K{K0, NONE, x}
 }
 
+// NewTable constructs table with cols as header and data as values
+func NewTable(cols []string, data []*K) *K {
+	return &K{XT, NONE, Table{cols, data}}
+}
+
+// NewDict constructs K dict from k,v slices.
+func NewDict(k, v *K) *K {
+	return &K{XD, NONE, Dict{k, v}}
+}
+
 // NewFunc creates K function with body in ctx namespace
 func NewFunc(ctx, body string) *K {
-	return &K{KFUNC, NONE, Function{Namespace: ctx, Body: body}}
+	return &K{KFUNC, NONE, Function{ctx, body}}
+}
+
+// Error constructs K error object from Go error
+func Error(x error) *K {
+	return &K{KERR, NONE, x}
 }
 
 // Len returns number of elements in K structure
@@ -321,8 +407,8 @@ func (m Month) String() string {
 type Minute time.Time
 
 func (m Minute) String() string {
-	time := time.Time(m)
-	return fmt.Sprintf("%02v:%02v", time.Hour(), time.Minute())
+	val := time.Time(m)
+	return fmt.Sprintf("%02v:%02v", val.Hour(), val.Minute())
 
 }
 
@@ -330,16 +416,8 @@ func (m Minute) String() string {
 type Second time.Time
 
 func (s Second) String() string {
-	time := time.Time(s)
-	return fmt.Sprintf("%02v:%02v:%02v", time.Hour(), time.Minute(), time.Second())
-}
-
-// Time represents time type in kdb - hh:mm:ss.SSS
-type Time time.Time
-
-func (t Time) String() string {
-	time := time.Time(t)
-	return fmt.Sprintf("%02v:%02v:%02v.%03v", time.Hour(), time.Minute(), time.Second(), time.Nanosecond()/1000000)
+	val := time.Time(s)
+	return fmt.Sprintf("%02v:%02v:%02v", val.Hour(), val.Minute(), val.Second())
 }
 
 // Table represents table type in kdb
@@ -348,12 +426,6 @@ type Table struct {
 	Data    []*K
 }
 
-// NewTable constructs table with cols as header and data as values
-func NewTable(cols []string, data []*K) *K {
-	return &K{XT, NONE, Table{cols, data}}
-}
-
-// Index returns i'th row of the table
 func (tbl *Table) Index(i int) Dict {
 	var d = Dict{}
 	d.Key = &K{KS, NONE, tbl.Columns}
@@ -397,12 +469,6 @@ type Dict struct {
 	Value *K
 }
 
-// NewDict constructs K dict from k,v slices.
-func NewDict(k, v *K) *K {
-	return &K{XD, NONE, Dict{k, v}}
-}
-
-// String
 func (d Dict) String() string {
 	return fmt.Sprintf("%v!%v", d.Key.Data, d.Value.Data)
 }

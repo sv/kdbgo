@@ -303,12 +303,11 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			return &K{msgtype, vecattr, timearr}, nil
 		}
 		if msgtype == KT {
-			arr := arr.([]int32)
-			var timearr = make([]Time, veclen)
-			for i := 0; i < int(veclen); i++ {
-				timearr[i] = Time(qEpoch.Add(time.Duration(arr[i]) * time.Millisecond))
+			var vec = make([]time.Time, veclen)
+			for i, millis := range arr.([]int32) {
+				vec[i] = time.Unix(0, int64(millis)*int64(time.Millisecond))
 			}
-			return &K{msgtype, vecattr, timearr}, nil
+			return TimeV(vec), nil
 		}
 		return &K{msgtype, vecattr, arr}, nil
 	case K0:

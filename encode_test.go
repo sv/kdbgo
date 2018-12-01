@@ -14,12 +14,12 @@ var encodingTests = []struct {
 	input    *K     // input
 	expected []byte // expected result
 }{
-	{"0b", &K{-KB, NONE, false}, BoolBytes},
-	{"01b", &K{KB, NONE, []bool{false, true}}, BoolVecBytes},
+	{"0b", Bool(false), BoolBytes},
+	{"01b", BoolV([]bool{false, true}), BoolVecBytes},
 	{"1i", Int(1), IntBytes},
 	{"enlist 1i", IntV([]int32{1}), IntVectorBytes},
-	{"`byte$til 5", &K{KG, NONE, []byte{0, 1, 2, 3, 4}}, ByteVectorBytes},
-	{"\"GOOG\"", &K{KC, NONE, "GOOG"}, CharArrayBytes},
+	{"`byte$til 5", ByteV([]byte{0, 1, 2, 3, 4}), ByteVectorBytes},
+	{"\"GOOG\"", String("GOOG"), CharArrayBytes},
 	{"`GOOG", Symbol("GOOG"), SymbolBytes},
 	{"`abc`bc`c", SymbolV([]string{"abc", "bc", "c"}), SymbolVectorBytes},
 	{"`a`b!2 3", NewDict(SymbolV([]string{"a", "b"}), IntV([]int32{2, 3})), DictWithAtomsBytes},
