@@ -3,125 +3,110 @@ package kdb
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
+	"fmt"
 	"io"
 	"reflect"
-	"strconv"
 	"time"
 )
 
-func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
-	switch data.Type {
-	case K0:
-		tosend := data.Data.([]*K)
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
-		binary.Write(dbuf, order, int32(len(tosend)))
-		for i := 0; i < len(tosend); i++ {
-			err = writeData(dbuf, order, tosend[i])
-			if err != nil {
+// TODO: Handle all the errors returned by `Write` calls
+// To read more about Qipc protocol, see https://code.kx.com/wiki/Reference/ipcprotocol
+// Negative types are scalar and positive ones are vector. 0 is mixed list
+func writeData(dbuf *bytes.Buffer, order binary.ByteOrder, k *K) error {
+	binary.Write(dbuf, order, k.Type)
+	switch {
+	case K0 <= k.Type && k.Type <= KT:
+		// For all vector types, write the attribute (s,u,p,g OR none) & length of the vector
+		binary.Write(dbuf, order, k.Attr)
+		binary.Write(dbuf, order, int32(reflect.ValueOf(k.Data).Len()))
+	case k.Type == XT:
+		// For table, only, write the attribute
+		binary.Write(dbuf, order, k.Attr)
+	}
+
+	switch k.Type {
+	case K0: // Mixed List
+		for _, k := range k.Data.([]*K) {
+			if err := writeData(dbuf, order, k); err != nil {
 				return err
 			}
 		}
-	case -KS:
-		tosend := data.Data.(string)
-
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, []byte(tosend))
-		binary.Write(dbuf, order, byte(0))
-	case KC:
-		tosend := data.Data.(string)
-
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
-		binary.Write(dbuf, order, int32(len(tosend)))
-		binary.Write(dbuf, order, []byte(tosend))
-	case KS:
-		tosend := data.Data.([]string)
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
-		binary.Write(dbuf, order, int32(len(tosend)))
-		for i := 0; i < len(tosend); i++ {
-			binary.Write(dbuf, order, []byte(tosend[i]))
-			binary.Write(dbuf, order, byte(0))
+	case -KB, -UU, -KG, -KH, -KI, -KJ, -KE, -KF, -KC, -KM, -KZ, -KN, -KU, -KV,
+		KB, UU, KG, KH, KI, KJ, KE, KF, KM, KZ, KN, KU, KV: // Bool, Int, Float, and Byte
+		// Note: UUID is backed by byte array of length 16
+		binary.Write(dbuf, order, k.Data)
+	case KC: // String
+		dbuf.WriteString(k.Data.(string))
+	case -KS: // Symbol
+		dbuf.WriteString(k.Data.(string))
+		binary.Write(dbuf, order, byte(0)) // Null terminator
+	case KS: // Symbol
+		for _, symbol := range k.Data.([]string) {
+			dbuf.WriteString(symbol)
+			binary.Write(dbuf, order, byte(0)) // Null terminator
 		}
-	case -KB:
-		tosend := data.Data.(bool)
-		binary.Write(dbuf, order, int8(data.Type))
-		var val byte
-		if tosend {
-			val = 0x01
-		} else {
-			val = 0x00
-		}
-		binary.Write(dbuf, order, val)
-	case -KI, -KJ, -KE, -KF, -UU:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Data)
-	case -KP:
-		tosend := data.Data.(time.Time)
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, tosend.Sub(qEpoch))
-	case KP:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
-		tosend := data.Data.([]time.Time)
-		for _, ts := range tosend {
+	case -KP: // Timestamp
+		binary.Write(dbuf, order, k.Data.(time.Time).Sub(qEpoch))
+	case KP: // Timestamp
+		for _, ts := range k.Data.([]time.Time) {
 			binary.Write(dbuf, order, ts.Sub(qEpoch))
 		}
-	case KB:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
-		tosend := data.Data.([]bool)
-		boolmap := map[bool]byte{false: 0x00, true: 0x01}
-		for _, b := range tosend {
-			binary.Write(dbuf, order, boolmap[b])
+	case -KD: // Date
+		date := k.Data.(time.Time)
+		days := (date.Truncate(time.Hour * 24).Unix() - qEpoch.Unix()) / 86400
+		binary.Write(dbuf, order, int32(days))
+	case KD: // Date
+		for _, date := range k.Data.([]time.Time) {
+			days := (date.Truncate(time.Hour * 24).Unix() - qEpoch.Unix()) / 86400
+			binary.Write(dbuf, order, int32(days))
 		}
-	case KG, KI, KJ, KE, KF, KZ, KT, KD, KV, KU, KM, KN, UU:
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, data.Attr) // attributes
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
-		binary.Write(dbuf, order, data.Data)
-	case XD:
-		tosend := data.Data.(Dict)
-		binary.Write(dbuf, order, XD)
-		err = writeData(dbuf, order, tosend.Key)
+	case -KT: // Time
+		t := k.Data.(time.Time)
+		nanos := time.Duration(t.Hour())*time.Hour +
+			time.Duration(t.Minute())*time.Minute +
+			time.Duration(t.Second())*time.Second +
+			time.Duration(t.Nanosecond())
+		binary.Write(dbuf, order, int32(nanos/time.Millisecond))
+	case KT: // Time
+		for _, t := range k.Data.([]time.Time) {
+			nanos := time.Duration(t.Hour())*time.Hour +
+				time.Duration(t.Minute())*time.Minute +
+				time.Duration(t.Second())*time.Second +
+				time.Duration(t.Nanosecond())
+			binary.Write(dbuf, order, int32(nanos/time.Millisecond))
+		}
+	case XD: // Dictionary
+		dict := k.Data.(Dict)
+		err := writeData(dbuf, order, dict.Key)
 		if err != nil {
 			return err
 		}
-		err = writeData(dbuf, order, tosend.Value)
+		err = writeData(dbuf, order, dict.Value)
 		if err != nil {
 			return err
 		}
-	case XT:
-		tosend := data.Data.(Table)
-		binary.Write(dbuf, order, XT)
-		binary.Write(dbuf, order, data.Attr) // attributes
-		err = writeData(dbuf, order, &K{XD, NONE, Dict{&K{KS, NONE, tosend.Columns}, &K{K0, NONE, tosend.Data}}})
+	case XT: // Table
+		table := k.Data.(Table)
+		err := writeData(dbuf, order, NewDict(SymbolV(table.Columns), Enlist(table.Data...)))
 		if err != nil {
 			return err
 		}
 	case KERR:
-		tosend := data.Data.(error)
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, []byte(tosend.Error()))
-		binary.Write(dbuf, order, byte(0))
+		err := k.Data.(error)
+		dbuf.WriteString(err.Error())
+		binary.Write(dbuf, order, byte(0)) // Null terminator
 	case KFUNC:
-		tosend := data.Data.(Function)
-		binary.Write(dbuf, order, int8(data.Type))
-		binary.Write(dbuf, order, []byte(tosend.Namespace))
-		binary.Write(dbuf, order, byte(0))
-		err = writeData(dbuf, order, &K{KC, NONE, tosend.Body})
+		fn := k.Data.(Function)
+		dbuf.WriteString(fn.Namespace)
+		binary.Write(dbuf, order, byte(0)) // Null terminator
+		err := writeData(dbuf, order, String(fn.Body))
 		if err != nil {
 			return err
 		}
 	default:
-		return errors.New("unknown type " + strconv.Itoa(int(data.Type)))
+		return fmt.Errorf("encode: unsupported type: %d", k.Type)
 	}
 	return nil
-
 }
 
 func min32(a, b int32) int32 {
@@ -213,6 +198,7 @@ func Encode(w io.Writer, msgtype int, data *K) (err error) {
 	if err != nil {
 		return err
 	}
+
 	msglen := uint32(8 + dbuf.Len())
 	var header = ipcHeader{1, byte(msgtype), 0, 0, msglen}
 	buf := new(bytes.Buffer)
