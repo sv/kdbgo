@@ -11,15 +11,20 @@ import (
 )
 
 func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
-	binary.Write(dbuf, order, data.Type)
-	if data.Type >= K0 && data.Type < XD {
+	t := data.Type
+	if t == XD && data.Attr == SORTED {
+		t = SD
+	}
+	binary.Write(dbuf, order, t)
+	if t >= K0 && t < XD {
 		binary.Write(dbuf, order, data.Attr) // attributes
-
+		if t != XT {
+			binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
+		}
 	}
 	switch data.Type {
 	case K0:
 		tosend := data.Data.([]*K)
-		binary.Write(dbuf, order, int32(len(tosend)))
 		for i := 0; i < len(tosend); i++ {
 			err = writeData(dbuf, order, tosend[i])
 			if err != nil {
@@ -32,45 +37,41 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		binary.Write(dbuf, order, byte(0))
 	case KC:
 		tosend := data.Data.(string)
-		binary.Write(dbuf, order, int32(len(tosend)))
 		binary.Write(dbuf, order, []byte(tosend))
 	case KS:
 		tosend := data.Data.([]string)
-		binary.Write(dbuf, order, int32(len(tosend)))
 		for i := 0; i < len(tosend); i++ {
 			binary.Write(dbuf, order, []byte(tosend[i]))
 			binary.Write(dbuf, order, byte(0))
 		}
-	case -KB:
-		tosend := data.Data.(bool)
-		var val byte
-		if tosend {
-			val = 0x01
-		} else {
-			val = 0x00
-		}
-		binary.Write(dbuf, order, val)
-	case -KI, -KJ, -KE, -KF, -UU:
+	case -KB, -KC, -KG, -KI, -KJ, -KE, -KF, -UU:
 		binary.Write(dbuf, order, data.Data)
 	case -KP:
 		tosend := data.Data.(time.Time)
 		binary.Write(dbuf, order, tosend.Sub(qEpoch))
+	case -KZ:
+		tosend := data.Data.(time.Time)
+		binary.Write(dbuf, order, -1*(float64(qEpoch.Sub(tosend)/time.Millisecond)/86400000))
+	case -KD:
+		tosend := data.Data.(time.Time)
+		binary.Write(dbuf, order, -1*int32(qEpoch.Sub(tosend)/time.Hour)/24)
 	case KP:
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
 		tosend := data.Data.([]time.Time)
 		for _, ts := range tosend {
 			binary.Write(dbuf, order, ts.Sub(qEpoch))
 		}
-	case KB:
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
-		tosend := data.Data.([]bool)
-		boolmap := map[bool]byte{false: 0x00, true: 0x01}
-		for _, b := range tosend {
-			binary.Write(dbuf, order, boolmap[b])
-		}
-	case KG, KI, KJ, KE, KF, KZ, KT, KD, KV, KU, KM, KN, UU:
-		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
+	case KB, KG, KH, KI, KJ, KE, KF, KT, KV, KU, KM, KN, UU:
 		binary.Write(dbuf, order, data.Data)
+	case KZ:
+		tosend := data.Data.([]time.Time)
+		for _, ts := range tosend {
+			binary.Write(dbuf, order, -1*(float64(qEpoch.Sub(ts)/time.Millisecond)/86400000))
+		}
+	case KD:
+		tosend := data.Data.([]time.Time)
+		for _, ts := range tosend {
+			binary.Write(dbuf, order, -1*(int32(qEpoch.Sub(ts)/time.Hour)/24))
+		}
 	case XD:
 		tosend := data.Data.(Dict)
 		err = writeData(dbuf, order, tosend.Key)
@@ -83,10 +84,7 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		}
 	case XT:
 		tosend := data.Data.(Table)
-		err = writeData(dbuf, order, NewDict(SymbolV(tosend.Columns), &K{K0, NONE, tosend.Data}))
-		if err != nil {
-			return err
-		}
+		return writeData(dbuf, order, NewDict(SymbolV(tosend.Columns), &K{K0, NONE, tosend.Data}))
 	case KERR:
 		tosend := data.Data.(error)
 		binary.Write(dbuf, order, []byte(tosend.Error()))
@@ -95,10 +93,17 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		tosend := data.Data.(Function)
 		binary.Write(dbuf, order, []byte(tosend.Namespace))
 		binary.Write(dbuf, order, byte(0))
-		err = writeData(dbuf, order, &K{KC, NONE, tosend.Body})
-		if err != nil {
-			return err
+		return writeData(dbuf, order, &K{KC, NONE, tosend.Body})
+	case KFUNCUP, KFUNCBP, KFUNCTR:
+		binary.Write(dbuf, order, data.Data.(byte))
+	case KPROJ, KCOMP:
+		tosend := data.Data.([]*K)
+		binary.Write(dbuf, order, uint32(len(tosend)))
+		for i := 0; i < len(tosend); i++ {
+			writeData(dbuf, order, tosend[i])
 		}
+	case KEACH, KOVER, KSCAN, KPRIOR, KEACHRIGHT, KEACHLEFT:
+		writeData(dbuf, order, data.Data.(*K))
 	default:
 		return errors.New("unknown type " + strconv.Itoa(int(data.Type)))
 	}

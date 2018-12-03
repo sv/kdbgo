@@ -190,7 +190,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		binary.Read(r, order, &sh)
 		return &K{msgtype, NONE, sh}, nil
 
-	case -KI, -KD, -KU, -KV:
+	case -KI, -KU, -KV:
 		var i int32
 		binary.Read(r, order, &i)
 		return &K{msgtype, NONE, i}, nil
@@ -202,7 +202,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var e float32
 		binary.Read(r, order, &e)
 		return &K{msgtype, NONE, e}, nil
-	case -KF, -KZ:
+	case -KF:
 		var f float64
 		binary.Read(r, order, &f)
 		return &K{msgtype, NONE, f}, nil
@@ -214,6 +214,15 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		str := string(line[:len(line)-1])
 
 		return &K{msgtype, NONE, str}, nil
+	case -KZ:
+		var ts float64
+		binary.Read(r, order, &ts)
+		d := time.Duration(86400000*ts) * time.Millisecond
+		return &K{msgtype, NONE, qEpoch.Add(d)}, nil
+	case -KD:
+		var d int32
+		binary.Read(r, order, &d)
+		return &K{msgtype, NONE, qEpoch.Add(time.Duration(d) * 24 * time.Hour)}, nil
 	case -KP:
 		var ts time.Duration
 		binary.Read(r, order, &ts)
@@ -412,7 +421,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		if err != nil {
 			return nil, err
 		}
-		var res = make([]interface{}, n)
+		var res = make([]*K, n)
 		for i := 0; i < int(n); i++ {
 			res[i], err = readData(r, order)
 			if err != nil {
@@ -421,7 +430,8 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		}
 		return &K{msgtype, NONE, res}, nil
 	case KEACH, KOVER, KSCAN, KPRIOR, KEACHRIGHT, KEACHLEFT:
-		return readData(r, order)
+		v, _ := readData(r, order)
+		return &K{msgtype, NONE, v}, nil
 	case KDYNLOAD:
 		// 112 - dynamic load
 		return nil, errors.New("type is unsupported")

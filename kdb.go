@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -17,24 +18,26 @@ import (
 // 3 - v3.0, compression, timestamp, timespan, uuid
 //
 
-// KDBConn establishes connection and communicates using Q IPC protocol
-type KDBConn struct {
+// Conn represents connection and communicates using Q IPC protocol
+type Conn struct {
 	con     net.Conn
 	rbuf    *bufio.Reader
-	Host    string
-	Port    string
-	userpwd string
+	network string
+	address string
+	auth    string
 }
 
+var ErrConnClosed = errors.New("Closed connection")
+
 // Close connection to the server
-func (c *KDBConn) Close() error {
+func (c *Conn) Close() error {
 	if c.ok() {
 		return c.con.Close()
 	}
-	return errors.New("Closed connection")
+	return ErrConnClosed
 }
 
-func (c *KDBConn) ok() bool {
+func (c *Conn) ok() bool {
 	return c.con != nil
 }
 
@@ -68,9 +71,9 @@ func HandleClientConnection(conn net.Conn) {
 }
 
 // Call performs synchronous call to kdb+ similar to h(func;arg1;arg2;...)
-func (c *KDBConn) Call(cmd string, args ...*K) (data *K, err error) {
+func (c *Conn) Call(cmd string, args ...*K) (data *K, err error) {
 	if !c.ok() {
-		return nil, errors.New("Closed connection")
+		return nil, ErrConnClosed
 	}
 	var sending *K
 	var cmdK = &K{KC, NONE, cmd}
@@ -88,9 +91,9 @@ func (c *KDBConn) Call(cmd string, args ...*K) (data *K, err error) {
 }
 
 // AsyncCall performs asynchronous call to kdb+
-func (c *KDBConn) AsyncCall(cmd string, args ...*K) (err error) {
+func (c *Conn) AsyncCall(cmd string, args ...*K) (err error) {
 	if !c.ok() {
-		return errors.New("Closed connection")
+		return ErrConnClosed
 	}
 	var sending *K
 	var cmdK = &K{KC, NONE, cmd}
@@ -103,24 +106,24 @@ func (c *KDBConn) AsyncCall(cmd string, args ...*K) (err error) {
 }
 
 // Response sends response to asynchronous call
-func (c *KDBConn) Response(data *K) (err error) {
+func (c *Conn) Response(data *K) (err error) {
 	return Encode(c.con, RESPONSE, data)
 }
 
 // ReadMessage reads complete message from connection
-func (c *KDBConn) ReadMessage() (data *K, msgtype ReqType, e error) {
+func (c *Conn) ReadMessage() (data *K, msgtype ReqType, e error) {
 	return Decode(c.rbuf)
 }
 
 // WriteMessage sends data in Q IPC format
-func (c *KDBConn) WriteMessage(msgtype ReqType, data *K) (err error) {
+func (c *Conn) WriteMessage(msgtype ReqType, data *K) (err error) {
 	return Encode(c.con, msgtype, data)
 }
 
-// DialKDB connects to host:port using supplied user:password. Wait until connected
-func DialKDB(host string, port int, auth string) (*KDBConn, error) {
+// Dial connects to host:port using supplied user:password. Wait until connected
+func Dial(network, address string) (*Conn, error) {
 	var timeout time.Duration
-	return DialKDBTimeout(host, port, auth, timeout)
+	return DialTimeout(network, address, timeout)
 }
 
 func kdbHandshake(c net.Conn, auth string) error {
@@ -148,9 +151,28 @@ func kdbHandshake(c net.Conn, auth string) error {
 	return nil
 }
 
+func parseAddress(address string) (dial string, auth string, err error) {
+	hp := strings.IndexByte(address, ':')
+	if hp == -1 {
+		// just port of filename without auth
+		return address, "", nil
+	}
+	hp = strings.IndexByte(address[hp+1:], ':')
+	if hp == -1 {
+		// only port specified - no auth
+		return address, "", nil
+	}
+	fmt.Printf("dial=%s, auth=%s\n", address[:hp], address[hp+1:])
+	return address[:hp], address[hp+1:], nil
+}
+
 // DialTLS connects to host:port using TLS with cfg provided
-func DialTLS(host string, port int, auth string, cfg *tls.Config) (*KDBConn, error) {
-	c, err := tls.Dial("tcp", host+":"+fmt.Sprint(port), cfg)
+func DialTLS(network, address string, cfg *tls.Config) (*Conn, error) {
+	dial, auth, err := parseAddress(address)
+	if err != nil {
+		return nil, err
+	}
+	c, err := tls.Dial("tcp", dial, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -158,25 +180,24 @@ func DialTLS(host string, port int, auth string, cfg *tls.Config) (*KDBConn, err
 	if err != nil {
 		return nil, err
 	}
-	kdbconn := KDBConn{c, bufio.NewReader(c), "", string(port), auth}
+	kdbconn := Conn{c, bufio.NewReader(c), network, dial, auth}
 	return &kdbconn, nil
 }
 
 // DialUnix connects to port using unix domain sockets. host parameter is ignored.
-func DialUnix(host string, port int, auth string) (*KDBConn, error) {
-	var (
-		c   net.Conn
-		err error
-	)
-
-	if runtime.GOOS == "linux" {
-		c, err = net.Dial("unix", fmt.Sprintf("@/tmp/kx.%d", port))
-	} else if runtime.GOOS == "darwin" {
-		c, err = net.Dial("unix", fmt.Sprintf("/tmp/kx.%d", port))
-	} else {
-		return nil, net.UnknownNetworkError("unix")
+func DialUnix(network, address string) (*Conn, error) {
+	dial, auth, err := parseAddress(address)
+	if err != nil {
+		return nil, err
 	}
-
+	if s := strings.IndexByte(dial, ':'); s != -1 {
+		dial = dial[s+1:]
+	}
+	dial = "/tmp/kx." + dial
+	if runtime.GOOS == "linux" {
+		dial = "@" + dial
+	}
+	c, err := net.Dial("unix", dial)
 	if err != nil {
 		return nil, err
 	}
@@ -185,26 +206,32 @@ func DialUnix(host string, port int, auth string) (*KDBConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &KDBConn{
-		con:     c,
-		rbuf:    bufio.NewReader(c),
-		Port:    string(port),
-		userpwd: auth,
-	}, nil
+
+	kdbconn := Conn{c, bufio.NewReader(c), network, dial, auth}
+	return &kdbconn, nil
 }
 
-// DialKDBTimeout connects to host:port using supplied user:password. Wait timeout for connection
-func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (*KDBConn, error) {
-	conn, err := net.Dial("tcp", host+":"+fmt.Sprint(port))
+// DialTimeout connects to host:port using supplied user:password. Wait timeout for connection
+func DialTimeout(network, address string, timeout time.Duration) (*Conn, error) {
+	if network == "" {
+		network = "tcp"
+	}
+	dial, auth, err := parseAddress(address)
 	if err != nil {
 		return nil, err
 	}
-	c := conn.(*net.TCPConn)
-	err = kdbHandshake(c, auth)
+
+	conn, err := net.Dial(network, dial)
 	if err != nil {
 		return nil, err
 	}
-	_ = c.SetKeepAlive(true) // care if keepalive is failed to be set?
-	kdbconn := KDBConn{c, bufio.NewReader(c), host, string(port), auth}
+	err = kdbHandshake(conn, auth)
+	if err != nil {
+		return nil, err
+	}
+	if c, ok := conn.(*net.TCPConn); ok {
+		_ = c.SetKeepAlive(true) // care if keepalive is failed to be set?
+	}
+	kdbconn := Conn{conn, bufio.NewReader(conn), network, dial, auth}
 	return &kdbconn, nil
 }

@@ -6,8 +6,8 @@ import (
 	"github.com/sv/kdbgo"
 )
 
-func ExampleDialKDB() {
-	con, err := kdb.DialKDB("localhost", 1234, "")
+func ExampleDial() {
+	con, err := kdb.Dial("tcp", "localhost:1234")
 	if err != nil {
 		fmt.Println("Failed to connect:", err)
 		return

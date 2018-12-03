@@ -15,8 +15,7 @@ import (
 	"time"
 )
 
-var testHost = "localhost"
-var testPort = 0
+var testAddress = ""
 
 func TestMain(m *testing.M) {
 	fmt.Println("Starting q process on random port")
@@ -44,13 +43,14 @@ func TestMain(m *testing.M) {
 	}
 	buf := make([]byte, 16)
 	n, _ := stdout.Read(buf)
-	testPort, err = strconv.Atoi(string(buf[:bytes.IndexByte(buf, 'i')]))
+	port, err := strconv.Atoi(string(buf[:bytes.IndexByte(buf, 'i')]))
 	if err != nil {
 		fmt.Println("Failed to setup listening port", string(buf[:n]), err)
 		cmd.Process.Kill()
 		os.Exit(1)
 	}
-	fmt.Println("Listening port is ", testPort)
+	fmt.Println("Listening port is ", port)
+	testAddress = fmt.Sprintf(":%d", port)
 	go func() {
 		for {
 			buf := make([]byte, 256)
@@ -82,7 +82,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestConn(t *testing.T) {
-	con, err := DialKDB(testHost, testPort, "")
+	con, err := Dial("tcp", testAddress)
 	if err != nil {
 		t.Fatalf("Failed to connect to test instance: %s", err)
 	}
@@ -94,7 +94,7 @@ func TestConn(t *testing.T) {
 
 func TestConnTimeout(t *testing.T) {
 	timeout := time.Second
-	con, err := DialKDBTimeout(testHost, testPort, "", timeout)
+	con, err := DialTimeout("tcp", testAddress, timeout)
 	if err != nil {
 		t.Fatalf("Failed to connect with timeout(%s). Error: %s", timeout, err)
 	}
@@ -105,7 +105,7 @@ func TestConnTimeout(t *testing.T) {
 }
 
 func TestConnUnix(t *testing.T) {
-	con, err := DialUnix(testHost, testPort, "")
+	con, err := DialUnix("unix", testAddress)
 	if err != nil {
 		t.Fatalf("Failed to connect to test instance via UDS: %s", err)
 	}
@@ -116,7 +116,10 @@ func TestConnUnix(t *testing.T) {
 }
 
 func TestConnTLS(t *testing.T) {
-	con, err := DialTLS(testHost, testPort, "", &tls.Config{InsecureSkipVerify: true})
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+	con, err := DialTLS("tcps", testAddress, &tls.Config{InsecureSkipVerify: true})
 	if err != nil {
 		t.Fatalf("Failed to connect to test instance via TLS: %s", err)
 	}
@@ -127,12 +130,12 @@ func TestConnTLS(t *testing.T) {
 }
 
 func TestSyncCall(t *testing.T) {
-	con, err := DialKDB(testHost, testPort, "")
+	con, err := Dial("tcp", testAddress)
 	if err != nil {
 		t.Fatalf("Failed to connect to test instance: %s", err)
 	}
 	fmt.Println("Testing sync function call")
-	_, _ = con.Call("show `testreq;(.q;.Q;.h;.o);1000000#0i")
+	_, _ = con.Call("show `testreq;(.q;.Q;.h;.o);0#1000000#0i")
 	/*fmt.Println("Result:", res, err)
 	if res.(string) != "test" {
 		t.Error("Unexpected result:", res)
@@ -140,11 +143,11 @@ func TestSyncCall(t *testing.T) {
 }
 
 func TestSyncCallCompress(t *testing.T) {
-	con, err := DialKDB(testHost, testPort, "")
+	con, err := Dial("tcp", testAddress)
 	if err != nil {
 		t.Fatalf("Failed to connect to test instance: %s", err)
 	}
-	vec := make([]int64, 25000000)
+	vec := make([]int64, 0*25000000)
 	sum := 0
 	for i := range vec {
 		vec[i] = int64(i)
@@ -159,7 +162,7 @@ func TestSyncCallCompress(t *testing.T) {
 }
 
 func TestSyncCallUnix(t *testing.T) {
-	con, err := DialUnix(testHost, testPort, "")
+	con, err := DialUnix("unix", testAddress)
 	if err != nil {
 		t.Fatalf("Failed to connect to test instance via UDS: %s", err)
 	}
@@ -172,12 +175,15 @@ func TestSyncCallUnix(t *testing.T) {
 }
 
 func TestSyncCallTLS(t *testing.T) {
-	con, err := DialTLS(testHost, testPort, "", &tls.Config{InsecureSkipVerify: true})
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+	con, err := DialTLS("tcps", testAddress, &tls.Config{InsecureSkipVerify: true})
 	if err != nil {
 		t.Fatalf("Failed to connect to test instance via TLS: %s", err)
 	}
 	fmt.Println("Testing sync function call via TLS")
-	_, _ = con.Call("show `testreqTLS;(.q;.Q;.h;.o);1000000#0i")
+	_, _ = con.Call("show `testreqTLS;(.q;.Q;.h;.o);0#1000000#0i")
 	/*fmt.Println("Result:", res, err)
 	if res.(string) != "test" {
 		t.Error("Unexpected result:", res)
@@ -185,7 +191,7 @@ func TestSyncCallTLS(t *testing.T) {
 }
 
 func TestAsyncCall(t *testing.T) {
-	con, err := DialKDB(testHost, testPort, "")
+	con, err := Dial("tcp", testAddress)
 	if err != nil {
 		t.Fatalf("Failed to connect to test instance: %s", err)
 	}
@@ -223,7 +229,7 @@ func TestAsyncCall2(t *testing.T) {
 */
 
 func TestResponse(t *testing.T) {
-	con, err := DialKDB(testHost, testPort, "")
+	con, err := Dial("tcp", testAddress)
 	if err != nil {
 		t.Fatalf("Failed to connect to test instance: %s", err)
 	}
@@ -233,8 +239,26 @@ func TestResponse(t *testing.T) {
 	}
 }
 
+func TestDecodeRemote(t *testing.T) {
+	con, err := Dial("tcp", testAddress)
+	if err != nil {
+		t.Fatalf("Failed to connect to test instance: %s", err)
+	}
+	res, err := con.Call("{flip (key x;value x)}.j")
+	fmt.Println("Result:", res, err)
+	if err != nil {
+		t.Error(err)
+	}
+	res, err = con.Call("show", res)
+	fmt.Println("Result:", res, err)
+
+}
+
 func BenchmarkTradeRead(b *testing.B) {
-	con, err := DialKDB("localhost", 1234, "")
+	if testing.Short() {
+		b.Skip("skipping test in short mode.")
+	}
+	con, err := Dial("tcp", "localhost:1234")
 	if err != nil {
 		b.Fatalf("Failed to connect to test instance: %s", err)
 	}
@@ -242,7 +266,7 @@ func BenchmarkTradeRead(b *testing.B) {
 	//fmt.Println("KDB connection", con, err)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = con.Call("10#testdata")
+		_, _ = con.Call("0#testdata")
 		//fmt.Println("Result:", reflect.TypeOf(res), err)
 	}
 }
