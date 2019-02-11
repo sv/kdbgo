@@ -205,6 +205,6 @@ func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (
 		return nil, err
 	}
 	_ = c.SetKeepAlive(true) // care if keepalive is failed to be set?
-	kdbconn := KDBConn{c, bufio.NewReader(c), host, string(port), auth}
+	kdbconn := KDBConn{c, bufio.NewReader(c), host, fmt.Sprint(port), auth}
 	return &kdbconn, nil
 }
