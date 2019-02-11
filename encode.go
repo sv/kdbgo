@@ -87,7 +87,7 @@ func writeData(dbuf *bytes.Buffer, order binary.ByteOrder, k *K) error {
 		}
 	case XT: // Table
 		table := k.Data.(Table)
-		err := writeData(dbuf, order, NewDict(SymbolV(table.Columns), Enlist(table.Data...)))
+		err := writeData(dbuf, order, NewDict(SymbolV(table.Columns), NewList(table.Data...)))
 		if err != nil {
 			return err
 		}
@@ -104,94 +104,13 @@ func writeData(dbuf *bytes.Buffer, order binary.ByteOrder, k *K) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("encode: unsupported type: %d", k.Type)
+		return fmt.Errorf("kdb encode: unsupported type: %d", k.Type)
 	}
 	return nil
 }
 
-func min32(a, b int32) int32 {
-	if a > b {
-		return b
-	}
-	return a
-}
-
-// Compress b using Q IPC compression
-func Compress(b []byte) (dst []byte) {
-	if len(b) <= 17 {
-		return b
-	}
-	i := byte(0)
-	//j := int32(len(b))
-	f, h0, h := int32(0), int32(0), int32(0)
-	g := false
-	dst = make([]byte, len(b)/2)
-	lenbuf := make([]byte, 4)
-	c := 12
-	d := c
-	e := len(dst)
-	p := 0
-	q, r, s0 := int32(0), int32(0), int32(0)
-	s := int32(8)
-	t := int32(len(b))
-	a := make([]int32, 256)
-	copy(dst[:4], b[:4])
-	dst[2] = 1
-	binary.LittleEndian.PutUint32(lenbuf, uint32(len(b)))
-	copy(dst[8:], lenbuf)
-	for ; s < t; i *= 2 {
-		if 0 == i {
-			if d > e-17 {
-				return b
-			}
-			i = 1
-			dst[c] = byte(f)
-			c = d
-			d++
-			f = 0
-		}
-
-		g = (s > t-3)
-		if !g {
-			h = int32(0xff & (b[s] ^ b[s+1]))
-			p = int(a[h])
-			g = (0 == p) || (0 != (b[s] ^ b[p]))
-		}
-
-		if 0 < s0 {
-			a[h0] = s0
-			s0 = 0
-		}
-		if g {
-			h0 = h
-			s0 = s
-			dst[d] = b[s]
-			d++
-			s++
-		} else {
-			a[h] = s
-			f |= int32(i)
-			p += 2
-			s += 2
-			r = s
-			q = min32(s+255, t)
-			for ; b[p] == b[s] && s+1 < q; s++ {
-				p++
-			}
-			dst[d] = byte(h)
-			d++
-			dst[d] = byte(s - r)
-			d++
-		}
-	}
-	dst[c] = byte(f)
-	binary.LittleEndian.PutUint32(lenbuf, uint32(d))
-	copy(dst[4:], lenbuf)
-	return dst[:d:d]
-}
-
 // Encode data to ipc format as msgtype(sync/async/response) to specified writer
-func Encode(w io.Writer, msgtype int, data *K) (err error) {
+func Encode(w io.Writer, msgtype ReqType, data *K) (err error) {
 	var order = binary.LittleEndian
 	dbuf := new(bytes.Buffer)
 	err = writeData(dbuf, order, data)
@@ -200,7 +119,7 @@ func Encode(w io.Writer, msgtype int, data *K) (err error) {
 	}
 
 	msglen := uint32(8 + dbuf.Len())
-	var header = ipcHeader{1, byte(msgtype), 0, 0, msglen}
+	var header = ipcHeader{1, msgtype, 0, 0, msglen}
 	buf := new(bytes.Buffer)
 	err = binary.Write(buf, order, header)
 	err = binary.Write(buf, order, dbuf.Bytes())

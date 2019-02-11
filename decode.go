@@ -13,14 +13,14 @@ import (
 	"github.com/nu7hatch/gouuid"
 )
 
-var typeSize = map[int8]int{
+var typeSize = []int{
 	1: 1, 4: 1, 10: 1,
 	2: 16,
 	5: 2,
 	6: 4, 8: 4, 13: 4, 14: 4, 17: 4, 18: 4, 19: 4,
 	7: 8, 9: 8, 12: 8, 15: 8, 16: 8}
 
-var typeReflect = map[int8]reflect.Type{
+var typeReflect = []reflect.Type{
 	1:  reflect.TypeOf([]bool{}),
 	2:  reflect.TypeOf([]uuid.UUID{}),
 	4:  reflect.TypeOf([]byte{}),
@@ -81,62 +81,8 @@ func (h *ipcHeader) ok() bool {
 	return h.ByteOrder == 0x01 && h.RequestType < 3 && h.Compressed < 0x02 && h.MsgSize > 9
 }
 
-// Ucompress byte array compressed with Q IPC compression
-func Uncompress(b []byte) (dst []byte) {
-	if len(b) < 4+1 {
-		return b
-	}
-	n, r, f, s := int32(0), int32(0), int32(0), int32(8)
-	p := int32(s)
-	i := int16(0)
-	var usize int32
-	binary.Read(bytes.NewReader(b[0:4]), binary.LittleEndian, &usize)
-	dst = make([]byte, usize)
-	d := int32(4)
-	aa := make([]int32, 256)
-	for int(s) < len(dst) {
-		if i == 0 {
-			f = 0xff & int32(b[d])
-			d++
-			i = 1
-		}
-		if (f & int32(i)) != 0 {
-			r = aa[0xff&int32(b[d])]
-			d++
-			dst[s] = dst[r]
-			s++
-			r++
-			dst[s] = dst[r]
-			s++
-			r++
-			n = 0xff & int32(b[d])
-			d++
-			for m := int32(0); m < n; m++ {
-				dst[s+m] = dst[r+m]
-			}
-		} else {
-			dst[s] = b[d]
-			s++
-			d++
-		}
-		for p < s-1 {
-			aa[(0xff&int32(dst[p]))^(0xff&int32(dst[p+1]))] = p
-			p++
-		}
-		if (f & int32(i)) != 0 {
-			s += n
-			p = s
-		}
-		i *= 2
-		if i == 256 {
-			i = 0
-		}
-	}
-	return dst
-}
-
-// Decodes data from src in q ipc format.
-func Decode(src *bufio.Reader) (data *K, msgtype int, e error) {
+// Decode deserialises data from src in q ipc format.
+func Decode(src *bufio.Reader) (data *K, msgtype ReqType, e error) {
 	var header ipcHeader
 	e = binary.Read(src, binary.LittleEndian, &header)
 	if e != nil {
@@ -153,15 +99,15 @@ func Decode(src *bufio.Reader) (data *K, msgtype int, e error) {
 		compressed := make([]byte, header.MsgSize-8)
 		_, e = io.ReadFull(src, compressed)
 		if e != nil {
-			return nil, int(header.RequestType), errors.New("Decode:readcompressed error - " + e.Error())
+			return nil, header.RequestType, errors.New("Decode:readcompressed error - " + e.Error())
 		}
 		var uncompressed = Uncompress(compressed)
 		var buf = bufio.NewReader(bytes.NewReader(uncompressed[8:]))
 		data, e = readData(buf, order)
-		return data, int(header.RequestType), e
+		return data, header.RequestType, e
 	}
 	data, e = readData(src, order)
-	return data, int(header.RequestType), e
+	return data, header.RequestType, e
 }
 
 func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
@@ -181,7 +127,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		binary.Read(r, order, &u)
 		return &K{msgtype, NONE, u}, nil
 
-	case -KG:
+	case -KG, -KC:
 		var b byte
 		binary.Read(r, order, &b)
 		return &K{msgtype, NONE, b}, nil
@@ -206,10 +152,6 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var f float64
 		binary.Read(r, order, &f)
 		return &K{msgtype, NONE, f}, nil
-	case -KC:
-		var c byte
-		binary.Read(r, order, &c)
-		return &K{msgtype, NONE, c}, nil // should be rune?
 	case -KS:
 		line, err := r.ReadBytes(0)
 		if err != nil {
@@ -364,7 +306,11 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewDict(dk, dv), nil
+		res := NewDict(dk, dv)
+		if msgtype == SD {
+			res.Attr = SORTED
+		}
+		return res, nil
 	case XT:
 		var vecattr Attr
 		err = binary.Read(r, order, &vecattr)
