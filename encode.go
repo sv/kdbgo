@@ -107,18 +107,32 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 }
 
 // Encode data to ipc format as msgtype(sync/async/response) to specified writer
-func Encode(w io.Writer, msgtype ReqType, data *K) (err error) {
+func Encode(w io.Writer, msgtype ReqType, data *K) error {
 	var order = binary.LittleEndian
-	dbuf := new(bytes.Buffer)
-	err = writeData(dbuf, order, data)
-	if err != nil {
+	buf := new(bytes.Buffer)
+
+	// As a place holder header, write 8 bytes to the buffer
+	header := [8]byte{}
+	if _, err := buf.Write(header[:]); err != nil {
 		return err
 	}
-	msglen := uint32(8 + dbuf.Len())
-	var header = ipcHeader{1, msgtype, 0, 0, msglen}
-	buf := new(bytes.Buffer)
-	err = binary.Write(buf, order, header)
-	err = binary.Write(buf, order, dbuf.Bytes())
-	_, err = w.Write(Compress(buf.Bytes()))
+
+	// Then write the qipc encoded data
+	if err := writeData(buf, order, data); err != nil {
+		return err
+	}
+
+	// Now that we have the length of the buffer, create the correct header
+	header[0] = 1 // byte order
+	header[1] = byte(msgtype)
+	header[2] = 0
+	header[3] = 0
+	order.PutUint32(header[4:], uint32(buf.Len()))
+
+	// Write the correct header to the original buffer
+	b := buf.Bytes()
+	copy(b, header[:])
+
+	_, err := w.Write(Compress(b))
 	return err
 }
