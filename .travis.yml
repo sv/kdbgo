@@ -1,8 +1,8 @@
 language: go
 
 go:
-  - 1.9
-  - "1.10"
+  - "1.11"
+  - "1.12"
   - tip
 
 matrix:
@@ -15,11 +15,8 @@ before_install:
   - go get github.com/nu7hatch/gouuid
   # linting tools
   - go get github.com/golang/lint/golint
-  # - go get github.com/fzipp/gocyclo
-
   # code coverage
   - go get github.com/axw/gocov/gocov
-  # - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
 
 install:
@@ -31,6 +28,8 @@ install:
   - rm -f $HOME/q/q.q
   - export QHOME=$HOME/q
   - export PATH=$PATH:$QHOME/l32
+  - ls -lR $QHOME
+  - chmod a+x $QHOME/l32/q
 
 script:
   # ensure everything is formatted all pretty like
