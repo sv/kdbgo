@@ -26,6 +26,12 @@ install:
   # make sure stuff actually builds
   - go build
 
+  - curl -O https://kx.com/$X/3.6/linuxx86.zip
+  - unzip -d $HOME linuxx86.zip
+  - rm -f $HOME/q/q.q
+  - export QHOME=$HOME/q
+  - export PATH=$PATH:$QHOME/l32
+
 script:
   # ensure everything is formatted all pretty like
   - if gofmt -l -s . | grep '**.go'; then exit 1; fi
@@ -34,6 +40,7 @@ script:
   # run tests
   - go get -t
   # - $HOME/gopath/bin/goveralls -service=travis-ci -repotoken=$COVERALLS -v
+  - go test ./...
 
 after_script:
   # check possible styling errors
