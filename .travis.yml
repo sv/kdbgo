@@ -26,7 +26,7 @@ install:
   # make sure stuff actually builds
   - go build
 
-  - curl -v -O https://kx.com/$X/3.5/linuxx86.zip
+  - curl -v -O https://kx.com/$X/3.6/linuxx86.zip
   - unzip -d $HOME linuxx86.zip
   - rm -f $HOME/q/q.q
   - export QHOME=$HOME/q
