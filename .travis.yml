@@ -28,8 +28,8 @@ install:
   - rm -f $HOME/q/q.q
   - export QHOME=$HOME/q
   - export PATH=$PATH:$QHOME/l32
-  - ls -lR $QHOME
-  - chmod a+x $QHOME/l32/q
+  - sudo apt-get update -qq # Update quietly.
+  - sudo apt-get install libc6-dev-i386
 
 script:
   # ensure everything is formatted all pretty like
