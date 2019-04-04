@@ -16,6 +16,8 @@ var encodingTests = []struct {
 }{
 	{"0b", &K{-KB, NONE, false}, BoolBytes},
 	{"01b", &K{KB, NONE, []bool{false, true}}, BoolVecBytes},
+	{"0xab", &K{-KG, NONE, byte(0xab)}, []byte{0x01, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0xfc, 0xab}},
+	{"257h", &K{-KH, NONE, int16(257)}, []byte{0x01, 0x00, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x00, 0xfb, 0x01, 0x01}},
 	{"1i", Int(1), IntBytes},
 	{"enlist 1i", IntV([]int32{1}), IntVectorBytes},
 	{"`byte$til 5", &K{KG, NONE, []byte{0, 1, 2, 3, 4}}, ByteVectorBytes},
