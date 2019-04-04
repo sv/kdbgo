@@ -106,11 +106,17 @@ const Nj int64 = math.MinInt64
 // Wj is a long infinity
 const Wj int64 = math.MaxInt64
 
+// Ne is a real nil
+var Ne = float32(math.NaN())
+
+// We is a real infinity
+var We = float32(math.Inf(+1))
+
 // Nf is a double nil
 var Nf = math.NaN()
 
 // Wf is a double infinity
-var Wf = math.Inf(1)
+var Wf = math.Inf(+1)
 
 // K structure
 type K struct {
