@@ -1,8 +1,8 @@
 language: go
 
 go:
-  - 1.9
-  - "1.10"
+  - "1.11"
+  - "1.12"
   - tip
 
 matrix:
@@ -15,16 +15,21 @@ before_install:
   - go get github.com/nu7hatch/gouuid
   # linting tools
   - go get github.com/golang/lint/golint
-  # - go get github.com/fzipp/gocyclo
-
   # code coverage
   - go get github.com/axw/gocov/gocov
-  # - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
 
 install:
   # make sure stuff actually builds
   - go build
+
+  - curl -O https://kx.com/$X/3.6/linuxx86.zip
+  - unzip -d $HOME linuxx86.zip
+  - rm -f $HOME/q/q.q
+  - export QHOME=$HOME/q
+  - export PATH=$PATH:$QHOME/l32
+  - sudo apt-get update -qq # Update quietly.
+  - sudo apt-get install libc6-dev-i386
 
 script:
   # ensure everything is formatted all pretty like
@@ -34,6 +39,7 @@ script:
   # run tests
   - go get -t
   # - $HOME/gopath/bin/goveralls -service=travis-ci -repotoken=$COVERALLS -v
+  - go test ./...
 
 after_script:
   # check possible styling errors

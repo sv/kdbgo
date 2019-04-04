@@ -81,60 +81,6 @@ func (h *ipcHeader) ok() bool {
 	return h.ByteOrder == 0x01 && h.RequestType < 3 && h.Compressed < 0x02 && h.MsgSize > 9
 }
 
-// Uncompress byte array compressed with Q IPC compression
-func Uncompress(b []byte) (dst []byte) {
-	if len(b) < 4+1 {
-		return b
-	}
-	n, r, f, s := int32(0), int32(0), int32(0), int32(8)
-	p := s
-	i := int16(0)
-	var usize int32
-	binary.Read(bytes.NewReader(b[0:4]), binary.LittleEndian, &usize)
-	dst = make([]byte, usize)
-	d := int32(4)
-	aa := make([]int32, 256)
-	for int(s) < len(dst) {
-		if i == 0 {
-			f = 0xff & int32(b[d])
-			d++
-			i = 1
-		}
-		if (f & int32(i)) != 0 {
-			r = aa[0xff&int32(b[d])]
-			d++
-			dst[s] = dst[r]
-			s++
-			r++
-			dst[s] = dst[r]
-			s++
-			r++
-			n = 0xff & int32(b[d])
-			d++
-			for m := int32(0); m < n; m++ {
-				dst[s+m] = dst[r+m]
-			}
-		} else {
-			dst[s] = b[d]
-			s++
-			d++
-		}
-		for p < s-1 {
-			aa[(0xff&int32(dst[p]))^(0xff&int32(dst[p+1]))] = p
-			p++
-		}
-		if (f & int32(i)) != 0 {
-			s += n
-			p = s
-		}
-		i *= 2
-		if i == 256 {
-			i = 0
-		}
-	}
-	return dst
-}
-
 // Decode deserialises data from src in q ipc format.
 func Decode(src *bufio.Reader) (data *K, msgtype ReqType, e error) {
 	var header ipcHeader
@@ -422,7 +368,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			return nil, err
 		}
 		var res = make([]*K, n)
-		for i := 0; i < int(n); i++ {
+		for i := 0; i < len(res); i++ {
 			res[i], err = readData(r, order)
 			if err != nil {
 				return nil, err
@@ -430,8 +376,11 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		}
 		return &K{msgtype, NONE, res}, nil
 	case KEACH, KOVER, KSCAN, KPRIOR, KEACHRIGHT, KEACHLEFT:
-		v, _ := readData(r, order)
-		return &K{msgtype, NONE, v}, nil
+		res, err := readData(r, order)
+		if err != nil {
+			return nil, err
+		}
+		return &K{msgtype, NONE, res}, nil
 	case KDYNLOAD:
 		// 112 - dynamic load
 		return nil, errors.New("type is unsupported")

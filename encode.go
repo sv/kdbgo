@@ -102,8 +102,26 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		for i := 0; i < len(tosend); i++ {
 			writeData(dbuf, order, tosend[i])
 		}
+	case KPROJ, KCOMP:
+		d := data.Data.([]*K)
+		err = binary.Write(dbuf, order, int32(len(d)))
+		if err != nil {
+			return err
+		}
+		for i := 0; i < len(d); i++ {
+			err = writeData(dbuf, order, d[i])
+			if err != nil {
+				return err
+			}
+		}
 	case KEACH, KOVER, KSCAN, KPRIOR, KEACHRIGHT, KEACHLEFT:
-		writeData(dbuf, order, data.Data.(*K))
+		return writeData(dbuf, order, data.Data.(*K))
+	case KFUNCUP, KFUNCBP, KFUNCTR:
+		b := data.Data.(byte)
+		err = binary.Write(dbuf, order, &b)
+		if err != nil {
+			return err
+		}
 	default:
 		return errors.New("unknown type " + strconv.Itoa(int(data.Type)))
 	}
@@ -111,100 +129,33 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 
 }
 
-func min32(a, b int32) int32 {
-	if a > b {
-		return b
-	}
-	return a
-}
-
-// Compress b using Q IPC compression
-func Compress(b []byte) (dst []byte) {
-	if len(b) <= 17 {
-		return b
-	}
-	i := byte(0)
-	//j := int32(len(b))
-	f, h0, h := int32(0), int32(0), int32(0)
-	g := false
-	dst = make([]byte, len(b)/2)
-	lenbuf := make([]byte, 4)
-	c := 12
-	d := c
-	e := len(dst)
-	p := 0
-	q, r, s0 := int32(0), int32(0), int32(0)
-	s := int32(8)
-	t := int32(len(b))
-	a := make([]int32, 256)
-	copy(dst[:4], b[:4])
-	dst[2] = 1
-	binary.LittleEndian.PutUint32(lenbuf, uint32(len(b)))
-	copy(dst[8:], lenbuf)
-	for ; s < t; i *= 2 {
-		if 0 == i {
-			if d > e-17 {
-				return b
-			}
-			i = 1
-			dst[c] = byte(f)
-			c = d
-			d++
-			f = 0
-		}
-
-		g = (s > t-3)
-		if !g {
-			h = int32(0xff & (b[s] ^ b[s+1]))
-			p = int(a[h])
-			g = (0 == p) || (0 != (b[s] ^ b[p]))
-		}
-
-		if 0 < s0 {
-			a[h0] = s0
-			s0 = 0
-		}
-		if g {
-			h0 = h
-			s0 = s
-			dst[d] = b[s]
-			d++
-			s++
-		} else {
-			a[h] = s
-			f |= int32(i)
-			p += 2
-			s += 2
-			r = s
-			q = min32(s+255, t)
-			for ; b[p] == b[s] && s+1 < q; s++ {
-				p++
-			}
-			dst[d] = byte(h)
-			d++
-			dst[d] = byte(s - r)
-			d++
-		}
-	}
-	dst[c] = byte(f)
-	binary.LittleEndian.PutUint32(lenbuf, uint32(d))
-	copy(dst[4:], lenbuf)
-	return dst[:d:d]
-}
-
 // Encode data to ipc format as msgtype(sync/async/response) to specified writer
-func Encode(w io.Writer, msgtype ReqType, data *K) (err error) {
+func Encode(w io.Writer, msgtype ReqType, data *K) error {
 	var order = binary.LittleEndian
-	dbuf := new(bytes.Buffer)
-	err = writeData(dbuf, order, data)
-	if err != nil {
+	buf := new(bytes.Buffer)
+
+	// As a place holder header, write 8 bytes to the buffer
+	header := [8]byte{}
+	if _, err := buf.Write(header[:]); err != nil {
 		return err
 	}
-	msglen := uint32(8 + dbuf.Len())
-	var header = ipcHeader{1, msgtype, 0, 0, msglen}
-	buf := new(bytes.Buffer)
-	err = binary.Write(buf, order, header)
-	err = binary.Write(buf, order, dbuf.Bytes())
-	_, err = w.Write(Compress(buf.Bytes()))
+
+	// Then write the qipc encoded data
+	if err := writeData(buf, order, data); err != nil {
+		return err
+	}
+
+	// Now that we have the length of the buffer, create the correct header
+	header[0] = 1 // byte order
+	header[1] = byte(msgtype)
+	header[2] = 0
+	header[3] = 0
+	order.PutUint32(header[4:], uint32(buf.Len()))
+
+	// Write the correct header to the original buffer
+	b := buf.Bytes()
+	copy(b, header[:])
+
+	_, err := w.Write(Compress(b))
 	return err
 }
