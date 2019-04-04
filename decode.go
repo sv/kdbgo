@@ -358,8 +358,8 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		if err != nil {
 			return nil, err
 		}
-		var res = make([]interface{}, n)
-		for i := 0; i < int(n); i++ {
+		var res = make([]*K, n)
+		for i := 0; i < len(res); i++ {
 			res[i], err = readData(r, order)
 			if err != nil {
 				return nil, err
@@ -367,7 +367,11 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		}
 		return &K{msgtype, NONE, res}, nil
 	case KEACH, KOVER, KSCAN, KPRIOR, KEACHRIGHT, KEACHLEFT:
-		return readData(r, order)
+		res, err := readData(r, order)
+		if err != nil {
+			return nil, err
+		}
+		return &K{msgtype, NONE, res}, nil
 	case KDYNLOAD:
 		// 112 - dynamic load
 		return nil, errors.New("type is unsupported")
