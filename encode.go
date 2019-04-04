@@ -102,26 +102,8 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		for i := 0; i < len(tosend); i++ {
 			writeData(dbuf, order, tosend[i])
 		}
-	case KPROJ, KCOMP:
-		d := data.Data.([]*K)
-		err = binary.Write(dbuf, order, int32(len(d)))
-		if err != nil {
-			return err
-		}
-		for i := 0; i < len(d); i++ {
-			err = writeData(dbuf, order, d[i])
-			if err != nil {
-				return err
-			}
-		}
 	case KEACH, KOVER, KSCAN, KPRIOR, KEACHRIGHT, KEACHLEFT:
 		return writeData(dbuf, order, data.Data.(*K))
-	case KFUNCUP, KFUNCBP, KFUNCTR:
-		b := data.Data.(byte)
-		err = binary.Write(dbuf, order, &b)
-		if err != nil {
-			return err
-		}
 	default:
 		return errors.New("unknown type " + strconv.Itoa(int(data.Type)))
 	}
