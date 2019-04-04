@@ -234,7 +234,7 @@ func TestResponse(t *testing.T) {
 }
 
 func BenchmarkTradeRead(b *testing.B) {
-	con, err := DialKDB("localhost", 1234, "")
+	con, err := DialKDB(testHost, testPort, "")
 	if err != nil {
 		b.Fatalf("Failed to connect to test instance: %s", err)
 	}
