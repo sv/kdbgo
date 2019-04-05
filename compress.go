@@ -11,15 +11,14 @@ func Compress(b []byte) (dst []byte) {
 		return b
 	}
 	i := byte(0)
-	//j := int32(len(b))
-	f, h0, h := int32(0), int32(0), int32(0)
+	f, h0, h := byte(0), byte(0), byte(0)
 	g := false
 	dst = make([]byte, len(b)/2)
 	lenbuf := make([]byte, 4)
 	c := 12
 	d := c
 	e := len(dst)
-	p := 0
+	p := int32(0)
 	q, r, s0 := int32(0), int32(0), int32(0)
 	s := int32(8)
 	t := int32(len(b))
@@ -34,7 +33,7 @@ func Compress(b []byte) (dst []byte) {
 				return b
 			}
 			i = 1
-			dst[c] = byte(f)
+			dst[c] = f
 			c = d
 			d++
 			f = 0
@@ -42,8 +41,8 @@ func Compress(b []byte) (dst []byte) {
 
 		g = (s > t-3)
 		if !g {
-			h = int32(0xff & (b[s] ^ b[s+1]))
-			p = int(a[h])
+			h = b[s] ^ b[s+1]
+			p = a[h]
 			g = (0 == p) || (0 != (b[s] ^ b[p]))
 		}
 
@@ -59,21 +58,24 @@ func Compress(b []byte) (dst []byte) {
 			s++
 		} else {
 			a[h] = s
-			f |= int32(i)
+			f |= i
 			p += 2
 			s += 2
 			r = s
 			q = min32(s+255, t)
-			for ; b[p] == b[s] && s+1 < q; s++ {
-				p++
+			for s < q && b[p] == b[s] {
+				s++
+				if s < q {
+					p++
+				}
 			}
-			dst[d] = byte(h)
+			dst[d] = h
 			d++
 			dst[d] = byte(s - r)
 			d++
 		}
 	}
-	dst[c] = byte(f)
+	dst[c] = f
 	binary.LittleEndian.PutUint32(lenbuf, uint32(d))
 	copy(dst[4:], lenbuf)
 	return dst[:d:d]
