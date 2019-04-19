@@ -43,7 +43,10 @@ func TestMain(m *testing.M) {
 		log.Fatal("Failed to start q", err)
 	}
 	buf := make([]byte, 16)
-	n, _ := stdout.Read(buf)
+	n, err := stdout.Read(buf)
+	if err != nil {
+		fmt.Println("Failed to fill port number for child process: ", err)
+	}
 	testPort, err = strconv.Atoi(string(buf[:bytes.IndexByte(buf, 'i')]))
 	if err != nil {
 		fmt.Println("Failed to setup listening port", string(buf[:n]), err)
@@ -65,8 +68,8 @@ func TestMain(m *testing.M) {
 	go func() {
 		for {
 			buf := make([]byte, 256)
-			n, err := stdout.Read(buf)
-			fmt.Println("Q stdout output:", string(buf[:n]))
+			_, err := stdout.Read(buf)
+			//fmt.Println("Q stdout output:", string(buf[:n]))
 			if err != nil {
 				fmt.Println("Q stdout error:", err)
 				return
@@ -241,6 +244,7 @@ func BenchmarkTradeRead(b *testing.B) {
 	con.Call("testdata:([]time:10?.z.p;sym:10?`8;price:100+10?1f;size:10?10)")
 	//fmt.Println("KDB connection", con, err)
 	b.ResetTimer()
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_, _ = con.Call("10#testdata")
 		//fmt.Println("Result:", reflect.TypeOf(res), err)
