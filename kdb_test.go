@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to connect stderr", err)
 	}
 	err = cmd.Start()
 	if err != nil {
@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 	buf := make([]byte, 16)
 	n, err := stdout.Read(buf)
 	if err != nil {
-		fmt.Println("Failed to fill port number for child process: ", err)
+		log.Fatal("Failed to fill port number for child process: ", err)
 	}
 	testPort, err = strconv.Atoi(string(buf[:bytes.IndexByte(buf, 'i')]))
 	if err != nil {
