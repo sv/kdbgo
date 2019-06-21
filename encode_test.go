@@ -5,8 +5,9 @@ import (
 	"errors"
 	"time"
 	//"fmt"
-	"github.com/nu7hatch/gouuid"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 var encodingTests = []struct {

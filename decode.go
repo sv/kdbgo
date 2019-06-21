@@ -10,7 +10,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/nu7hatch/gouuid"
+	"github.com/google/uuid"
 )
 
 var typeSize = []int{
@@ -46,7 +46,7 @@ func makeArray(vectype int8, veclen int) interface{} {
 	case 4, 10:
 		return make([]byte, veclen)
 	case 2:
-		return make([]uuid.UUID, veclen)
+		return new([16]uint8)
 	case 5:
 		return make([]int16, veclen)
 	case 6, 14, 17, 18, 19:
