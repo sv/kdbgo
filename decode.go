@@ -46,7 +46,7 @@ func makeArray(vectype int8, veclen int) interface{} {
 	case 4, 10:
 		return make([]byte, veclen)
 	case 2:
-		return new([16]uint8)
+		return make([]uuid.UUID, veclen)
 	case 5:
 		return make([]int16, veclen)
 	case 6, 14, 17, 18, 19:
