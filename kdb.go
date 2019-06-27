@@ -195,7 +195,7 @@ func DialUnix(host string, port int, auth string) (*KDBConn, error) {
 
 // DialKDBTimeout connects to host:port using supplied user:password. Wait timeout for connection
 func DialKDBTimeout(host string, port int, auth string, timeout time.Duration) (*KDBConn, error) {
-	conn, err := net.Dial("tcp", host+":"+fmt.Sprint(port))
+	conn, err := net.DialTimeout("tcp", host+":"+fmt.Sprint(port), timeout)
 	if err != nil {
 		return nil, err
 	}
