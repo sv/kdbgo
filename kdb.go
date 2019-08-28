@@ -3,6 +3,7 @@ package kdb
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -233,5 +234,47 @@ func DialTimeout(network, address string, timeout time.Duration) (*Conn, error) 
 		_ = c.SetKeepAlive(true) // care if keepalive is failed to be set?
 	}
 	kdbconn := Conn{conn, bufio.NewReader(conn), network, dial, auth}
+	return &kdbconn, nil
+}
+
+// DialContext connects to host:port using supplied user:password. It uses the context's build-in timeout.
+func DialContext(ctx context.Context, network, address string) (*Conn, error) {
+	if network == "" {
+		network = "tcp"
+	}
+	dial, auth, err := parseAddress(address)
+	if err != nil {
+		return nil, err
+	}
+
+	dialer := &net.Dialer{}
+	conn, err := dialer.DialContext(ctx, "tcp", dial)
+	if err != nil {
+		return nil, err
+	}
+
+	ready := make(chan bool)
+
+	c := conn.(*net.TCPConn)
+
+	go func() {
+		err = kdbHandshake(c, auth)
+		ready <- true
+	}()
+
+	select {
+	case <-ready:
+		if err != nil {
+			c.Close()
+			return nil, err
+		}
+		// all good
+	case <-ctx.Done():
+		conn.Close()
+		return nil, errors.New("KDB Handshake timed out")
+	}
+
+	_ = c.SetKeepAlive(true) // care if keepalive is failed to be set?
+	kdbconn := Conn{c, bufio.NewReader(c), network, dial, auth}
 	return &kdbconn, nil
 }
