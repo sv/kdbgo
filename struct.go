@@ -445,7 +445,7 @@ func UnmarshalDict(t Dict, v interface{}) error {
 
 // UnmarshalDictToMap decodes dict into map[string]{}interface
 func UnmarshalDictToMap(t Dict, v interface{}) error {
-	vv := reflect.ValueOf(v)
+	vv := reflect.ValueOf(v).Elem()
 	if vv.Kind() == reflect.Map {
 		// check if keys are
 		kt := vv.Type()
