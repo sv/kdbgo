@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"os"
 	"reflect"
 	"strconv"
 	"time"
@@ -155,4 +156,23 @@ func Encode(w io.Writer, msgtype ReqType, data *K) error {
 
 	_, err := w.Write(Compress(b))
 	return err
+}
+
+func WriteToFile(filename string, data *K) error {
+	var order = binary.LittleEndian
+	buf := new(bytes.Buffer)
+
+	buf.Write([]byte{0xFF, 0x01})
+	if err := writeData(buf, order, data); err != nil {
+		return err
+	}
+
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	f.Write(buf.Bytes())
+	defer f.Close()
+
+	return nil
 }

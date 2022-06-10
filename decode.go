@@ -6,11 +6,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"os"
 	"reflect"
 	"time"
 	"unsafe"
 
-	"github.com/nu7hatch/gouuid"
+	uuid "github.com/nu7hatch/gouuid"
 )
 
 var typeSize = []int{
@@ -384,4 +385,17 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		return nil, errors.New(errmsg)
 	}
 	return nil, ErrBadMsg
+}
+
+func ReadFromFile(filename string) (*K, error) {
+	var order = binary.LittleEndian
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	reader := bufio.NewReader(f)
+	// Read 0xFF, 0x01 bytes magic number
+	reader.ReadByte()
+	reader.ReadByte()
+	return readData(reader, order)
 }
