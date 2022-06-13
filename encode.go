@@ -158,6 +158,18 @@ func Encode(w io.Writer, msgtype ReqType, data *K) error {
 	return err
 }
 
+func WriteToBuffer(data *K) (*bytes.Buffer, error) {
+	var order = binary.LittleEndian
+	buf := new(bytes.Buffer)
+
+	buf.Write([]byte{0xFF, 0x01})
+	if err := writeData(buf, order, data); err != nil {
+		return nil, err
+	}
+
+	return buf, nil
+}
+
 func WriteToFile(filename string, data *K) error {
 	var order = binary.LittleEndian
 	buf := new(bytes.Buffer)

@@ -387,6 +387,15 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 	return nil, ErrBadMsg
 }
 
+func ReadFromBuffer(data *bytes.Buffer) (*K, error) {
+	var order = binary.LittleEndian
+	reader := bufio.NewReader(data)
+	// Read 0xFF, 0x01 bytes magic number
+	reader.ReadByte()
+	reader.ReadByte()
+	return readData(reader, order)
+}
+
 func ReadFromFile(filename string) (*K, error) {
 	var order = binary.LittleEndian
 	f, err := os.Open(filename)
