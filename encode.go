@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"reflect"
 	"strconv"
 	"time"
@@ -53,13 +54,21 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 	case -KG, -KH, -KI, -KJ, -KE, -KF, -UU:
 		binary.Write(dbuf, order, data.Data)
 	case -KP:
-		tosend := data.Data.(time.Time)
-		binary.Write(dbuf, order, tosend.Sub(qEpoch))
+		binary.Write(dbuf, order, timeToQi64(data.Data.(time.Time)))
 	case KP:
 		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
 		tosend := data.Data.([]time.Time)
 		for _, ts := range tosend {
-			binary.Write(dbuf, order, ts.Sub(qEpoch))
+			binary.Write(dbuf, order, timeToQi64(ts))
+		}
+	case -KD:
+		tosend := data.Data.(time.Time)
+		binary.Write(dbuf, order, timeToQi32(tosend, 24*time.Hour))
+	case KD:
+		tosend := data.Data.([]time.Time)
+		binary.Write(dbuf, order, int32(len(tosend)))
+		for _, ts := range tosend {
+			binary.Write(dbuf, order, timeToQi32(ts, 24*time.Hour))
 		}
 	case KB:
 		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
@@ -68,7 +77,39 @@ func writeData(dbuf io.Writer, order binary.ByteOrder, data *K) (err error) {
 		for _, b := range tosend {
 			binary.Write(dbuf, order, boolmap[b])
 		}
-	case KG, KI, KJ, KE, KF, KZ, KT, KD, KV, KU, KM, KN, UU:
+	case -KZ:
+		binary.Write(dbuf, order, timeToQf64(data.Data.(time.Time)))
+	case KZ:
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
+		tosend := data.Data.([]time.Time)
+		for _, ts := range tosend {
+			binary.Write(dbuf, order, timeToQf64(ts))
+		}
+	case -KT:
+		binary.Write(dbuf, order, timeToQi32(time.Time(data.Data.(Time)), time.Millisecond))
+	case KT:
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
+		tosend := data.Data.([]Time)
+		for _, ts := range tosend {
+			binary.Write(dbuf, order, timeToQi32(time.Time(ts), time.Millisecond))
+		}
+	case -KV:
+		binary.Write(dbuf, order, timeToQi32(time.Time(data.Data.(Second)), time.Second))
+	case KV:
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
+		tosend := data.Data.([]Second)
+		for _, ts := range tosend {
+			binary.Write(dbuf, order, timeToQi32(time.Time(ts), time.Second))
+		}
+	case -KU:
+		binary.Write(dbuf, order, timeToQi32(time.Time(data.Data.(Minute)), time.Minute))
+	case KU:
+		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
+		tosend := data.Data.([]Minute)
+		for _, ts := range tosend {
+			binary.Write(dbuf, order, timeToQi32(time.Time(ts), time.Minute))
+		}
+	case KG, KI, KJ, KE, KF, KM, KN, UU:
 		binary.Write(dbuf, order, int32(reflect.ValueOf(data.Data).Len()))
 		binary.Write(dbuf, order, data.Data)
 	case XD:
@@ -155,4 +196,25 @@ func Encode(w io.Writer, msgtype ReqType, data *K) error {
 
 	_, err := w.Write(Compress(b))
 	return err
+}
+
+func timeToQi32(value time.Time, scale time.Duration) int32 {
+	if value.IsZero() {
+		return Ni
+	}
+	return int32(value.Sub(qEpoch) / scale)
+}
+
+func timeToQi64(value time.Time) int64 {
+	if value.IsZero() {
+		return Nj
+	}
+	return int64(value.Sub(qEpoch))
+}
+
+func timeToQf64(value time.Time) float64 {
+	if value.IsZero() {
+		return math.NaN()
+	}
+	return float64(value.Sub(qEpoch)) / float64(86400000000000)
 }

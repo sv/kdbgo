@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"reflect"
 	"time"
 	"unsafe"
@@ -136,7 +137,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		binary.Read(r, order, &sh)
 		return &K{msgtype, NONE, sh}, nil
 
-	case -KI, -KD, -KU, -KV:
+	case -KI:
 		var i int32
 		binary.Read(r, order, &i)
 		return &K{msgtype, NONE, i}, nil
@@ -148,7 +149,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		var e float32
 		binary.Read(r, order, &e)
 		return &K{msgtype, NONE, e}, nil
-	case -KF, -KZ:
+	case -KF:
 		var f float64
 		binary.Read(r, order, &f)
 		return &K{msgtype, NONE, f}, nil
@@ -161,9 +162,29 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 
 		return &K{msgtype, NONE, str}, nil
 	case -KP:
-		var ts time.Duration
-		binary.Read(r, order, &ts)
-		return &K{msgtype, NONE, qEpoch.Add(ts)}, nil
+		var d int64
+		binary.Read(r, order, &d)
+		return &K{msgtype, NONE, qi64toTime(d)}, nil
+	case -KD:
+		var d int32
+		binary.Read(r, order, &d)
+		return &K{msgtype, NONE, qi32toTime(d, 24*time.Hour)}, nil
+	case -KU:
+		var d int32
+		binary.Read(r, order, &d)
+		return &K{msgtype, NONE, Minute(qi32toTime(d, time.Minute))}, nil
+	case -KV:
+		var d int32
+		binary.Read(r, order, &d)
+		return &K{msgtype, NONE, Second(qi32toTime(d, time.Second))}, nil
+	case -KT:
+		var d int32
+		binary.Read(r, order, &d)
+		return &K{msgtype, NONE, Time(qi32toTime(d, time.Millisecond))}, nil
+	case -KZ:
+		var f float64
+		binary.Read(r, order, &f)
+		return &K{msgtype, NONE, qf64toTime(f)}, nil
 	case -KM:
 		var m Month
 		binary.Read(r, order, &m)
@@ -208,7 +229,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			arr := arr.([]time.Duration)
 			var timearr = make([]time.Time, veclen)
 			for i := 0; i < int(veclen); i++ {
-				timearr[i] = qEpoch.Add(arr[i])
+				timearr[i] = qi64toTime(int64(arr[i]))
 			}
 			return &K{msgtype, vecattr, timearr}, nil
 		}
@@ -216,8 +237,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			arr := arr.([]int32)
 			var timearr = make([]time.Time, veclen)
 			for i := 0; i < int(veclen); i++ {
-				d := time.Duration(arr[i]) * 24 * time.Hour
-				timearr[i] = qEpoch.Add(d)
+				timearr[i] = qi32toTime(arr[i], 24*time.Hour)
 			}
 			return &K{msgtype, vecattr, timearr}, nil
 		}
@@ -225,8 +245,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			arr := arr.([]float64)
 			var timearr = make([]time.Time, veclen)
 			for i := 0; i < int(veclen); i++ {
-				d := time.Duration(86400000*arr[i]) * time.Millisecond
-				timearr[i] = qEpoch.Add(d)
+				timearr[i] = qf64toTime(arr[i])
 			}
 			return &K{msgtype, vecattr, timearr}, nil
 		}
@@ -234,8 +253,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			arr := arr.([]int32)
 			var timearr = make([]Minute, veclen)
 			for i := 0; i < int(veclen); i++ {
-				d := time.Duration(arr[i]) * time.Minute
-				timearr[i] = Minute(time.Time{}.Add(d))
+				timearr[i] = Minute(qi32toTime(arr[i], time.Minute))
 			}
 			return &K{msgtype, vecattr, timearr}, nil
 		}
@@ -243,8 +261,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			arr := arr.([]int32)
 			var timearr = make([]Second, veclen)
 			for i := 0; i < int(veclen); i++ {
-				d := time.Duration(arr[i]) * time.Second
-				timearr[i] = Second(time.Time{}.Add(d))
+				timearr[i] = Second(qi32toTime(arr[i], time.Second))
 			}
 			return &K{msgtype, vecattr, timearr}, nil
 		}
@@ -252,7 +269,7 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 			arr := arr.([]int32)
 			var timearr = make([]Time, veclen)
 			for i := 0; i < int(veclen); i++ {
-				timearr[i] = Time(qEpoch.Add(time.Duration(arr[i]) * time.Millisecond))
+				timearr[i] = Time(qi32toTime(arr[i], time.Millisecond))
 			}
 			return &K{msgtype, vecattr, timearr}, nil
 		}
@@ -384,4 +401,25 @@ func readData(r *bufio.Reader, order binary.ByteOrder) (kobj *K, err error) {
 		return nil, errors.New(errmsg)
 	}
 	return nil, ErrBadMsg
+}
+
+func qi32toTime(value int32, scale time.Duration) time.Time {
+	if value == Ni {
+		return time.Time{}
+	}
+	return qEpoch.Add(time.Duration(value) * scale)
+}
+
+func qi64toTime(value int64) time.Time {
+	if value == Nj {
+		return time.Time{}
+	}
+	return qEpoch.Add(time.Duration(value))
+}
+
+func qf64toTime(value float64) time.Time {
+	if math.IsNaN(value) {
+		return time.Time{}
+	}
+	return qEpoch.Add(time.Duration(86400000*value) * time.Millisecond)
 }
